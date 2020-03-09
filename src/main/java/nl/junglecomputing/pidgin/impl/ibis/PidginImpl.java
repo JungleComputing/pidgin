@@ -146,8 +146,11 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
         return ibis.registry().getPoolSize();
     }
 
-    @Override
     public void terminate() throws IOException {
+
+        for (Channel c : channels.values()) {
+            c.deactivate();
+        }
 
         if (local.equals(master)) {
             ibis.registry().terminate();
@@ -155,47 +158,6 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
             ibis.registry().waitUntilTerminated();
         }
     }
-
-    // @Override
-    // public void cleanup() {
-    // synchronized (channels) {
-    //
-    // Set<String> keys = channels.keySet();
-    //
-    // for (String k : keys) {
-    //
-    // PidginChannel c = channels.remove(k);
-    //
-    // if (c != null) {
-    // try {
-    // c.cleanup();
-    // } catch (Exception e) {
-    // logger.warn("Failed to cleanup channel " + k, e);
-    // }
-    // }
-    // }
-    // }
-    // }
-
-    // @Override
-    // public void cleanup(NodeIdentifier id) {
-    // IbisIdentifier dest = ((NodeIdentifierImpl) id).getIbisIdentifier();
-    //
-    // synchronized (channels) {
-    // for (PidginChannel c : channels.values()) {
-    // try {
-    // c.cleanup(dest);
-    // } catch (Exception e) {
-    // logger.warn("Failed to cleanup node " + id + " from channel " + c.getName(), e);
-    // }
-    // }
-    // }
-    // }
-    //
-    // @Override
-    // public boolean sendMessage(String channel, NodeIdentifier dest, byte opcode, Object data, ByteBuffer... buffers) throws NoSuchChannelException {
-    // return getChannel(channel).sendMessage(dest, opcode, data, buffers);
-    // }
 
     @Override
     public int getRank() {
@@ -241,21 +203,7 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
 
     }
 
-    // @Override
-    // public void activate() throws IOException {
-    //
-    // // if (properties.PROFILE_COMMUNICATION) {
-    // // communicationTimer = pool.getProfiling().getTimer("java", "data handling", "read/write data");
-    // // } else {
-    // // communicationTimer = null;
-    // // }
-    //
-    // for (PidginChannel c : channels.values()) {
-    // c.activate();
-    // }
-    // }
-
-    @Override
+    // not used -- remove?
     public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException {
         IbisIdentifier id = ibis.registry().getElectionResult(electTag, timeout);
         if (id != null) {
@@ -264,7 +212,7 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
         return null;
     }
 
-    @Override
+    // not used -- remove?
     public NodeIdentifier elect(String electTag) throws IOException {
         return new NodeIdentifierImpl(ibis.registry().elect(electTag));
     }
@@ -337,7 +285,9 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
             c = channels.remove(name);
         }
 
-        // c.deactivate();
+        if (c != null) {
+            c.deactivate();
+        }
     }
 
     @Override

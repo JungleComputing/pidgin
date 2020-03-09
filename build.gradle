@@ -26,7 +26,7 @@ dependencies {
     testCompile 'org.slf4j:slf4j-log4j12:1.7.2'
 }
 
-version = '0.0.4'
+version = '0.0.5'
 
 def pomConfig = {
     scm {

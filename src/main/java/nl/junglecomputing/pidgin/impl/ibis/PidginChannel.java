@@ -46,6 +46,8 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     private Upcall upcall;
 
+    private boolean active = false;
+
     private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
 
     protected PidginChannel(Ibis ibis, String name, Upcall upcall) {
@@ -56,6 +58,17 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     protected final String getName() {
         return name;
+    }
+
+    protected final synchronized boolean setActive(boolean value) {
+
+        boolean old = active;
+        active = value;
+        return old;
+    }
+
+    protected final synchronized boolean isActive() {
+        return active;
     }
 
     public abstract void activate() throws IOException;
@@ -77,6 +90,12 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     @Override
     public void deactivate() throws IOException {
+
+        boolean wasActive = setActive(false);
+
+        if (!wasActive) {
+            return;
+        }
 
         disableReceivePorts();
 
@@ -235,10 +254,12 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
 
+        if (!isActive()) {
+            return false;
+        }
+
         SendPort s = null;
         IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
-
-        // System.out.println("SendMessage to " + dest);
 
         try {
             s = getSendPort(dest);
@@ -246,8 +267,6 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
             logger.warn("Failed to connect to " + dest, e);
             return false;
         }
-
-        // System.out.println("SendMessage to " + dest + " got sendport");
 
         return doSendMessage(s, dest, opcode, data, buffers);
     }

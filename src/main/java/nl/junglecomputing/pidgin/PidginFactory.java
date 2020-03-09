@@ -22,8 +22,25 @@ import nl.junglecomputing.pidgin.impl.ibis.PidginImpl;
 
 public class PidginFactory {
 
-    public static Pidgin create(Properties p) throws Exception {
-        return new PidginImpl(p);
+    private static PidginImpl pidgin = null;
+    private static int use = 0;
+
+    public static synchronized Pidgin create(Properties p) throws Exception {
+
+        if (pidgin == null) {
+            pidgin = new PidginImpl(p);
+        }
+
+        use++;
+        return pidgin;
     }
 
+    public static synchronized void terminate() throws Exception {
+
+        use--;
+
+        if (use == 0) {
+            pidgin.terminate();
+        }
+    }
 }

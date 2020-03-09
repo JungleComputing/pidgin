@@ -143,8 +143,7 @@ public class Throughput implements Upcall {
             }
         }
 
-        pidgin.removeChannel(CHANNEL);
-        pidgin.terminate();
+        channel.deactivate();
     }
 
     @Override
@@ -172,10 +171,11 @@ public class Throughput implements Upcall {
 
         if (p.getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
-            p.terminate();
             System.exit(1);
         }
 
         new Throughput(p).runTest();
+
+        PidginFactory.terminate();
     }
 }

@@ -20,37 +20,23 @@ import java.io.IOException;
 
 public interface Pidgin {
 
-    public NodeIdentifier getMyIdentifier();
+    public abstract int getRank();
 
-    public NodeIdentifier getMaster();
+    public abstract int getPoolSize();
 
-    public boolean isMaster();
+    public abstract NodeIdentifier[] getNodeIdentifiers();
 
-    public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException;
+    public abstract NodeIdentifier getMyIdentifier();
 
-    public NodeIdentifier elect(String electTag) throws IOException;
+    public abstract NodeIdentifier getMaster();
 
-    public int getRank();
-
-    public int getPoolSize();
-
-    public NodeIdentifier[] getNodeIdentifiers();
+    public abstract boolean isMaster();
 
     // Channel management
-    public Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException;
+    public abstract Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException;
 
-    public Channel getChannel(String name) throws NoSuchChannelException;
+    public abstract Channel getChannel(String name) throws NoSuchChannelException;
 
-    public void removeChannel(String name) throws NoSuchChannelException, IOException;
+    public abstract void removeChannel(String name) throws NoSuchChannelException, IOException;
 
-    // public void activateChannel(String name) throws NoSuchChannelException, IOException;
-
-    // public boolean sendMessage(String channel, NodeIdentifier dest, byte opcode, Object data, ByteBuffer... buffers)
-    // throws NoSuchChannelException, ChannelNotActiveException, IOException;
-
-    // public void cleanup();
-
-    // public void cleanup(NodeIdentifier node);
-
-    public void terminate() throws IOException;
 }

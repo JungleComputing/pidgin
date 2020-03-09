@@ -55,6 +55,12 @@ public class ClosedPidginChannel extends PidginChannel {
     @Override
     public void activate() throws IOException {
 
+        boolean wasActive = setActive(true);
+
+        if (wasActive) {
+            return;
+        }
+
         for (int i = 0; i < rports.length; i++) {
             if (rports[i] != null) {
                 rports[i].enableMessageUpcalls();
