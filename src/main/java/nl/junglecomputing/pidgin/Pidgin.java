@@ -26,23 +26,27 @@ import java.io.IOException;
 
 public interface Pidgin {
 
-    public abstract int getRank();
+    public int getRank();
 
-    public abstract int getPoolSize();
+    public int getPoolSize();
 
-    public abstract NodeIdentifier[] getNodeIdentifiers();
+    public NodeIdentifier[] getNodeIdentifiers();
 
-    public abstract NodeIdentifier getMyIdentifier();
+    public NodeIdentifier getMyIdentifier();
 
-    public abstract NodeIdentifier getMaster();
+    public NodeIdentifier getMaster();
 
-    public abstract boolean isMaster();
+    public boolean isMaster();
+
+    public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException;
+
+    public NodeIdentifier elect(String electTag) throws IOException;
 
     // Channel management
-    public abstract Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException;
+    public Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException;
 
-    public abstract Channel getChannel(String name) throws NoSuchChannelException;
+    public Channel getChannel(String name) throws NoSuchChannelException;
 
-    public abstract void removeChannel(String name) throws NoSuchChannelException, IOException;
+    public void removeChannel(String name) throws NoSuchChannelException, IOException;
 
 }

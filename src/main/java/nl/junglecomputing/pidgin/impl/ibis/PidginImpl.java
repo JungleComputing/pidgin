@@ -203,7 +203,7 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
 
     }
 
-    // not used -- remove?
+    @Override
     public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException {
         IbisIdentifier id = ibis.registry().getElectionResult(electTag, timeout);
         if (id != null) {
@@ -212,7 +212,7 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
         return null;
     }
 
-    // not used -- remove?
+    @Override
     public NodeIdentifier elect(String electTag) throws IOException {
         return new NodeIdentifierImpl(ibis.registry().elect(electTag));
     }

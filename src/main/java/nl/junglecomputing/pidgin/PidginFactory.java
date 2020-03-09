@@ -16,6 +16,7 @@
  */
 package nl.junglecomputing.pidgin;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import nl.junglecomputing.pidgin.impl.ibis.PidginImpl;
@@ -35,7 +36,7 @@ public class PidginFactory {
         return pidgin;
     }
 
-    public static synchronized void terminate() throws Exception {
+    public static synchronized void terminate() throws IOException {
 
         use--;
 
