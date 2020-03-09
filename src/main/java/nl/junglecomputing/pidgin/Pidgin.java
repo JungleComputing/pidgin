@@ -18,6 +18,12 @@ package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
 
+/**
+ * Pidgin provided a simple communication layer based on a fixed set of nodes.
+ * 
+ * @author jason
+ */
+
 public interface Pidgin {
 
     public abstract int getRank();
