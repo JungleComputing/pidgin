@@ -9,10 +9,13 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
+    mavenCentral()
     jcenter()
 }
 
 dependencies {
+    compile 'nl.junglecomputing:timing:0.0.3'
     compile 'nl.junglecomputing.ipl:ipl:2.3.3'
     compile 'nl.junglecomputing.ipl:ibis-util:2.3.3'
     compile 'org.slf4j:slf4j-api:1.7.21'
@@ -26,7 +29,7 @@ dependencies {
     testCompile 'org.slf4j:slf4j-log4j12:1.7.2'
 }
 
-version = '0.0.6'
+version = '0.0.7'
 
 def pomConfig = {
     scm {

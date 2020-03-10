@@ -26,6 +26,7 @@ import ibis.ipl.IbisIdentifier;
 import ibis.ipl.PortType;
 import ibis.ipl.ReceivePort;
 import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.timer.Timer;
 
 public class OpenPidginChannel extends PidginChannel {
 
@@ -33,8 +34,8 @@ public class OpenPidginChannel extends PidginChannel {
 
     private ReceivePort rp;
 
-    public OpenPidginChannel(Ibis ibis, String name, Upcall upcall) throws IOException {
-        super(ibis, name, upcall);
+    public OpenPidginChannel(Ibis ibis, String name, Upcall upcall, Timer timing) throws IOException {
+        super(ibis, name, upcall, timing);
     }
 
     @Override

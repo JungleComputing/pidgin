@@ -28,17 +28,20 @@ import nl.junglecomputing.pidgin.NodeIdentifier;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.PidginFactory;
 import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.timer.Profiling;
+import nl.junglecomputing.timer.Timer;
 
 public class Throughput implements Upcall {
 
     private static final String CHANNEL = "tp";
 
-    private static final int TESTS = 100;
+    private static final int TESTS = 10;
     private static final int REPEAT = 1000;
     private static final int SIZE = 1024 * 1024;
 
     private static final byte OPCODE_DATA = 0;
     private static final byte OPCODE_ACK = 1;
+    private static final byte OPCODE_PROFILE = 2;
 
     private final Pidgin pidgin;
     private final ByteBuffer buffer;
@@ -52,6 +55,11 @@ public class Throughput implements Upcall {
 
     private final Channel channel;
 
+    private final Profiling p;
+
+    private int eventNo;
+    private Timer overall;
+
     public Throughput(Pidgin pidgin) throws DuplicateChannelException, IOException {
         this.pidgin = pidgin;
         this.buffer = ByteBuffer.allocate(SIZE);
@@ -60,7 +68,14 @@ public class Throughput implements Upcall {
         rank = pidgin.getRank();
         ids = pidgin.getNodeIdentifiers();
 
-        channel = pidgin.createChannel(CHANNEL, this);
+        p = new Profiling("rank " + rank);
+
+        overall = p.getOverallTimer();
+        eventNo = overall.start();
+
+        Timer t = p.getTimer();
+
+        channel = pidgin.createChannel(CHANNEL, this, t);
     }
 
     private synchronized void waitForAck() {
@@ -144,6 +159,10 @@ public class Throughput implements Upcall {
         }
 
         channel.deactivate();
+
+        overall.stop(eventNo);
+
+        p.printProfile("tp." + rank);
     }
 
     @Override

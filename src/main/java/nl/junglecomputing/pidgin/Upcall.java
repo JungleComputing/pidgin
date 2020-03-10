@@ -23,5 +23,4 @@ public interface Upcall {
     ByteBuffer[] allocateByteBuffers(String channel, NodeIdentifier sender, byte opcode, Object data, int[] sizes);
 
     void receiveMessage(String channel, NodeIdentifier sender, byte opcode, Object data, ByteBuffer[] buffers);
-
 }

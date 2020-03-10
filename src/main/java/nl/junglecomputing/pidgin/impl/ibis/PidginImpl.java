@@ -35,6 +35,8 @@ import nl.junglecomputing.pidgin.NoSuchChannelException;
 import nl.junglecomputing.pidgin.NodeIdentifier;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.timer.Timer;
+import nl.junglecomputing.timer.TimerImpl;
 
 public class PidginImpl implements Pidgin, RegistryEventHandler {
 
@@ -243,7 +245,7 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
     }
 
     @Override
-    public Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException {
+    public Channel createChannel(String name, Upcall upcall, Timer timer) throws DuplicateChannelException, IOException {
 
         System.err.println("Creating channel " + name);
 
@@ -254,10 +256,12 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
                 throw new DuplicateChannelException("Channel already exists " + name);
             }
 
+            TimerImpl t = null;
+
             if (closedPool) {
-                p = new ClosedPidginChannel(ibis, name, upcall, ids);
+                p = new ClosedPidginChannel(ibis, name, upcall, ids, timer);
             } else {
-                p = new OpenPidginChannel(ibis, name, upcall);
+                p = new OpenPidginChannel(ibis, name, upcall, timer);
             }
 
             channels.put(name, p);

@@ -33,6 +33,7 @@ import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.Channel;
 import nl.junglecomputing.pidgin.NodeIdentifier;
 import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.timer.Timer;
 
 public abstract class PidginChannel implements Channel, MessageUpcall {
 
@@ -48,12 +49,15 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     private boolean active = false;
 
+    protected final Timer communicationTimer;
+
     private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
 
-    protected PidginChannel(Ibis ibis, String name, Upcall upcall) {
+    protected PidginChannel(Ibis ibis, String name, Upcall upcall, Timer timer) {
         this.ibis = ibis;
         this.name = name;
         this.upcall = upcall;
+        this.communicationTimer = timer;
     }
 
     protected final String getName() {
@@ -61,7 +65,6 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
     }
 
     protected final synchronized boolean setActive(boolean value) {
-
         boolean old = active;
         active = value;
         return old;
@@ -188,20 +191,32 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
         return sp;
     }
 
-    private boolean doSendMessage(SendPort s, IbisIdentifier dest, byte opcode, Object data, ByteBuffer... buffers) {
+    public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
 
-        // System.out.println("doSendMessage to " + dest);
+        if (!isActive()) {
+            return false;
+        }
 
-        int eventNo = -1;
         long sz = 0;
+        int eventNo = -1;
+        SendPort s = null;
         WriteMessage wm = null;
+
+        if (communicationTimer != null) {
+            eventNo = communicationTimer.start("pidgin " + name + " send message");
+        }
+
+        IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
+
+        try {
+            s = getSendPort(dest);
+        } catch (IOException e) {
+            logger.warn("Failed to connect to " + dest, e);
+            return false;
+        }
+
         try {
             wm = s.newMessage();
-            // String name = Pool.getString(m.opcode, "write");
-            // if (communicationTimer != null && m.contents != null) {
-            // eventNo = communicationTimer.start(name);
-            // }
-
             wm.writeByte(opcode);
 
             if (data == null) {
@@ -232,43 +247,23 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
             }
 
             sz = wm.finish();
-            // if (eventNo != -1) {
-            // communicationTimer.stop(eventNo);
-            // communicationTimer.addBytes(sz, eventNo);
-            // }
+
+            if (eventNo != -1) {
+                communicationTimer.stop(eventNo);
+                communicationTimer.addBytes(sz, eventNo);
+            }
         } catch (IOException e) {
             logger.warn("Communication to " + dest + " gave exception", e);
             if (wm != null) {
                 wm.finish(e);
             }
-            // if (eventNo != -1) {
-            // communicationTimer.cancel(eventNo);
-            // }
+            if (eventNo != -1) {
+                communicationTimer.cancel(eventNo);
+            }
             return false;
         }
-
-        // System.out.println("doSendMessage to " + dest + " success");
 
         return true;
-    }
-
-    public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
-
-        if (!isActive()) {
-            return false;
-        }
-
-        SendPort s = null;
-        IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
-
-        try {
-            s = getSendPort(dest);
-        } catch (IOException e) {
-            logger.warn("Failed to connect to " + dest, e);
-            return false;
-        }
-
-        return doSendMessage(s, dest, opcode, data, buffers);
     }
 
     @Override
@@ -276,8 +271,12 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
         NodeIdentifier source = new NodeIdentifierImpl(rm.origin().ibisIdentifier());
         int timerEvent = -1;
-        byte opcode = rm.readByte();
 
+        if (communicationTimer != null) {
+            timerEvent = communicationTimer.start("pidgin read message");
+        }
+
+        byte opcode = rm.readByte();
         boolean hasObject = rm.readBoolean();
 
         Object data = null;
@@ -307,19 +306,11 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
         long sz = rm.finish();
 
+        if (timerEvent != -1) {
+            communicationTimer.stop(timerEvent);
+            communicationTimer.addBytes(sz, timerEvent);
+        }
+
         upcall.receiveMessage(name, source, opcode, data, buffers);
-
-        // if (communicationTimer != null && hasObject) {
-        // timerEvent = communicationTimer.start(Pool.getString(opcode, "read"));
-        // }
-
-        // if (timerEvent != -1) {
-        // if (data == null) {
-        // communicationTimer.cancel(timerEvent);
-        // } else {
-        // communicationTimer.stop(timerEvent);
-        // communicationTimer.addBytes(sz, timerEvent);
-        // }
-        // }
     }
 }

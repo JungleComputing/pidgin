@@ -26,6 +26,7 @@ import ibis.ipl.IbisIdentifier;
 import ibis.ipl.PortType;
 import ibis.ipl.ReceivePort;
 import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.timer.Timer;
 
 public class ClosedPidginChannel extends PidginChannel {
 
@@ -33,8 +34,8 @@ public class ClosedPidginChannel extends PidginChannel {
 
     private ReceivePort rports[];
 
-    public ClosedPidginChannel(Ibis ibis, String name, Upcall upcall, IbisIdentifier[] ids) throws IOException {
-        super(ibis, name, upcall);
+    public ClosedPidginChannel(Ibis ibis, String name, Upcall upcall, IbisIdentifier[] ids, Timer timing) throws IOException {
+        super(ibis, name, upcall, timing);
 
         System.err.println("Creating ClosedChannel " + name);
 
@@ -55,10 +56,16 @@ public class ClosedPidginChannel extends PidginChannel {
     @Override
     public void activate() throws IOException {
 
+        int eventNo = -1;
+
         boolean wasActive = setActive(true);
 
         if (wasActive) {
             return;
+        }
+
+        if (communicationTimer != null) {
+            eventNo = communicationTimer.start("pidgin activi channel " + name);
         }
 
         for (int i = 0; i < rports.length; i++) {
@@ -67,7 +74,9 @@ public class ClosedPidginChannel extends PidginChannel {
             }
         }
 
-        System.err.println("ClosedChannel " + name + " now active");
+        if (eventNo != -1) {
+            communicationTimer.stop(eventNo);
+        }
     }
 
     @Override

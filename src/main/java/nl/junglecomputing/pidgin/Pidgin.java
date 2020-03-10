@@ -18,6 +18,8 @@ package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
 
+import nl.junglecomputing.timer.Timer;
+
 /**
  * Pidgin provided a simple communication layer based on a fixed set of nodes.
  * 
@@ -43,7 +45,7 @@ public interface Pidgin {
     public NodeIdentifier elect(String electTag) throws IOException;
 
     // Channel management
-    public Channel createChannel(String name, Upcall upcall) throws DuplicateChannelException, IOException;
+    public Channel createChannel(String name, Upcall upcall, Timer profiling) throws DuplicateChannelException, IOException;
 
     public Channel getChannel(String name) throws NoSuchChannelException;
 
