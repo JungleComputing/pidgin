@@ -26,14 +26,14 @@ import ibis.ipl.ReadMessage;
 import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.ChannelNotActiveException;
 import nl.junglecomputing.pidgin.DuplicateChannelException;
+import nl.junglecomputing.pidgin.MessageUpcallChannel;
 import nl.junglecomputing.pidgin.NoSuchChannelException;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.PidginFactory;
-import nl.junglecomputing.pidgin.MessageUpcallChannel;
 
 public class ThroughputMessageUpcallFinish implements MessageUpcall {
 
-    private static final String CHANNEL = "tp";
+    private static final String CHANNEL = "tpMUF";
 
     private static final int TESTS = 100;
     private static final int REPEAT = 1000;
@@ -41,7 +41,6 @@ public class ThroughputMessageUpcallFinish implements MessageUpcall {
 
     private static final byte OPCODE_ACK = 1;
 
-    private final Pidgin pidgin;
     private final ByteBuffer buffer;
     private final ByteBuffer[] buffers;
 
@@ -54,7 +53,6 @@ public class ThroughputMessageUpcallFinish implements MessageUpcall {
     private final MessageUpcallChannel channel;
 
     public ThroughputMessageUpcallFinish(Pidgin pidgin) throws DuplicateChannelException, IOException {
-        this.pidgin = pidgin;
         this.buffer = ByteBuffer.allocate(SIZE);
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;

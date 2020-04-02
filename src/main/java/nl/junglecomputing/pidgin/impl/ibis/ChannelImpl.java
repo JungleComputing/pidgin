@@ -24,7 +24,9 @@ import org.slf4j.LoggerFactory;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
+import ibis.ipl.ReceivePort;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.Channel;
@@ -42,11 +44,51 @@ public abstract class ChannelImpl implements Channel {
 
     private boolean active = false;
 
+    protected ReceivePort rports[];
+
     private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
 
-    protected ChannelImpl(Ibis ibis, String name) {
+    protected final ConcurrentHashMap<IbisIdentifier, ReceivePort> receiveports = new ConcurrentHashMap<IbisIdentifier, ReceivePort>();
+
+    private ChannelImpl(Ibis ibis, String name, IbisIdentifier[] ids, boolean hasUpcall, MessageUpcall upcall) throws IOException {
         this.ibis = ibis;
         this.name = name;
+
+        if (logger.isInfoEnabled()) {
+            logger.info("Creating ChannelImpl " + name);
+        }
+
+        rports = new ReceivePort[ids.length];
+
+        if (logger.isInfoEnabled()) {
+            logger.info("ChannelImpl " + name + " has " + ids.length + " members");
+        }
+
+        for (int i = 0; i < rports.length; i++) {
+            if (!ids[i].equals(ibis.identifier())) {
+                if (hasUpcall) {
+                    rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]), upcall);
+                } else {
+                    rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]));
+                }
+
+                rports[i].enableConnections();
+
+                receiveports.put(ids[i], rports[i]);
+
+                if (logger.isInfoEnabled()) {
+                    logger.info("ChannelImpl created RP " + getReceivePortName(ids[i]));
+                }
+            }
+        }
+    }
+
+    protected ChannelImpl(Ibis ibis, String name, IbisIdentifier[] ids, MessageUpcall upcall) throws IOException {
+        this(ibis, name, ids, true, upcall);
+    }
+
+    protected ChannelImpl(Ibis ibis, String name, IbisIdentifier[] ids) throws IOException {
+        this(ibis, name, ids, false, null);
     }
 
     protected final String getName() {
@@ -98,17 +140,35 @@ public abstract class ChannelImpl implements Channel {
 
     protected abstract String getReceivePortName(IbisIdentifier id);
 
-    protected abstract void disableReceivePorts();
-
-    protected abstract void closeReceivePorts();
-
     protected abstract PortType getPortType();
+
+    protected void disableReceivePorts() {
+        for (ReceivePort rp : rports) {
+            if (rp != null) {
+                rp.disableConnections();
+            }
+        }
+    }
+
+    protected void closeReceivePorts() {
+        if (rports != null) {
+            for (ReceivePort rport : rports) {
+                if (rport != null) {
+                    try {
+                        rport.close(10000);
+                    } catch (IOException e) {
+                        logger.info("Close receive port " + rport.name() + " got exception", e);
+                    }
+                }
+            }
+        }
+    }
 
     private SendPort createAndConnect(IbisIdentifier id, String rpName, long timeout) throws IOException {
 
-        // if (logger.isInfoEnabled()) {
-        System.out.println("Connecting to " + id.name() + ":" + rpName + " from " + ibis.identifier());
-        // }
+        if (logger.isInfoEnabled()) {
+            logger.info("Connecting to " + id.name() + ":" + rpName + " from " + ibis.identifier());
+        }
 
         SendPort sp = null;
 
@@ -116,7 +176,9 @@ public abstract class ChannelImpl implements Channel {
             sp = ibis.createSendPort(getPortType());
             sp.connect(id, rpName, timeout, true);
 
-            System.out.println("Connection to " + id.name() + ":" + rpName + " established");
+            if (logger.isInfoEnabled()) {
+                logger.info("Connecting to " + id.name() + ":" + rpName + " from " + ibis.identifier());
+            }
 
         } catch (IOException e) {
             try {
@@ -177,83 +239,4 @@ public abstract class ChannelImpl implements Channel {
             throw e;
         }
     }
-
-    /*
-     * public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
-     * 
-     * if (!isActive()) { return false; }
-     * 
-     * long sz = 0; int eventNo = -1; SendPort s = null; WriteMessage wm = null;
-     * 
-     * if (communicationTimer != null) { eventNo = communicationTimer.start("pidgin " + name + " send message"); }
-     * 
-     * IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
-     * 
-     * try { s = getSendPort(dest); } catch (IOException e) { logger.warn("Failed to connect to " + dest, e); return false; }
-     * 
-     * try { wm = s.newMessage(); wm.writeByte(opcode);
-     * 
-     * if (data == null) { wm.writeBoolean(false); } else { wm.writeBoolean(true); wm.writeObject(data); }
-     * 
-     * if (buffers == null || buffers.length == 0) { wm.writeInt(0); } else { wm.writeInt(buffers.length);
-     * 
-     * for (ByteBuffer b : buffers) { if (b == null) { wm.writeInt(0); } else { wm.writeInt(b.remaining()); } }
-     * 
-     * for (ByteBuffer b : buffers) { if (b != null) { wm.writeByteBuffer(b); } } }
-     * 
-     * sz = wm.finish();
-     * 
-     * if (eventNo != -1) { communicationTimer.stop(eventNo); communicationTimer.addBytes(sz, eventNo); } } catch (IOException e) {
-     * logger.warn("Communication to " + dest + " gave exception", e); if (wm != null) { wm.finish(e); } if (eventNo != -1) {
-     * communicationTimer.cancel(eventNo); } return false; }
-     * 
-     * return true; }
-     */
-    // @Override
-    // public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
-    //
-    // NodeIdentifier source = new NodeIdentifierImpl(rm.origin().ibisIdentifier());
-    // int timerEvent = -1;
-    //
-    // if (communicationTimer != null) {
-    // timerEvent = communicationTimer.start("pidgin read message");
-    // }
-    //
-    // byte opcode = rm.readByte();
-    // boolean hasObject = rm.readBoolean();
-    //
-    // Object data = null;
-    //
-    // if (hasObject) {
-    // data = rm.readObject();
-    // }
-    //
-    // int bufferCount = rm.readInt();
-    //
-    // ByteBuffer[] buffers = null;
-    //
-    // if (bufferCount > 0) {
-    // int[] sizes = new int[bufferCount];
-    //
-    // for (int i = 0; i < bufferCount; i++) {
-    // sizes[i] = rm.readInt();
-    // }
-    //
-    // buffers = upcall.allocateByteBuffers(name, source, opcode, data, sizes);
-    //
-    // for (int i = 0; i < bufferCount; i++) {
-    // // TODO: We should check if the buffers[i] is actually valid and has the reading space?
-    // rm.readByteBuffer(buffers[i]);
-    // }
-    // }
-    //
-    // long sz = rm.finish();
-    //
-    // if (timerEvent != -1) {
-    // communicationTimer.stop(timerEvent);
-    // communicationTimer.addBytes(sz, timerEvent);
-    // }
-    //
-    // upcall.receiveMessage(name, source, opcode, data, buffers);
-    // }
 }

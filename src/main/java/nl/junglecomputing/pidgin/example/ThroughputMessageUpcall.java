@@ -26,22 +26,21 @@ import ibis.ipl.ReadMessage;
 import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.ChannelNotActiveException;
 import nl.junglecomputing.pidgin.DuplicateChannelException;
+import nl.junglecomputing.pidgin.MessageUpcallChannel;
 import nl.junglecomputing.pidgin.NoSuchChannelException;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.PidginFactory;
-import nl.junglecomputing.pidgin.MessageUpcallChannel;
 
 public class ThroughputMessageUpcall implements MessageUpcall {
 
-    private static final String CHANNEL = "tp";
+    private static final String CHANNEL = "tpMU";
 
-    private static final int TESTS = 1000000;
-    private static final int REPEAT = 100000;
-    private static final int SIZE = 4;
+    private static final int TESTS = 100;
+    private static final int REPEAT = 1000;
+    private static final int SIZE = 1024 * 1024;
 
     private static final byte OPCODE_ACK = 1;
 
-    private final Pidgin pidgin;
     private final ByteBuffer buffer;
     private final ByteBuffer[] buffers;
 
@@ -54,7 +53,6 @@ public class ThroughputMessageUpcall implements MessageUpcall {
     private final MessageUpcallChannel channel;
 
     public ThroughputMessageUpcall(Pidgin pidgin) throws DuplicateChannelException, IOException {
-        this.pidgin = pidgin;
         this.buffer = ByteBuffer.allocate(SIZE);
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;
@@ -149,7 +147,7 @@ public class ThroughputMessageUpcall implements MessageUpcall {
                 long bytes = (long) SIZE * (long) REPEAT;
                 double mbit = ((8 * bytes) / (1000.0 * 1000.0)) / (end - start);
 
-                // System.out.println("Test " + t + " took " + (end - start) + " ms. " + mbit + " Gbit/s");
+                System.out.println("Test " + t + " took " + (end - start) + " ms. " + mbit + " Gbit/s");
             }
         }
 

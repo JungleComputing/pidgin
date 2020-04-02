@@ -19,9 +19,6 @@ package nl.junglecomputing.pidgin.impl.ibis;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
 import ibis.ipl.MessageUpcall;
@@ -31,8 +28,6 @@ import nl.junglecomputing.pidgin.Upcall;
 import nl.junglecomputing.pidgin.UpcallChannel;
 
 public class UpcallChannelImpl implements UpcallChannel, MessageUpcall {
-
-    private static final Logger logger = LoggerFactory.getLogger(UpcallChannelImpl.class);
 
     private final MessageUpcallChannelImpl impl;
     private final Upcall upcall;

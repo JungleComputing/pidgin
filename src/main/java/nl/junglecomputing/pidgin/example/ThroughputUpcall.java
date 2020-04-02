@@ -32,17 +32,15 @@ import nl.junglecomputing.pidgin.UpcallChannel;
 
 public class ThroughputUpcall implements Upcall {
 
-    private static final String CHANNEL = "tp";
+    private static final String CHANNEL = "tpU";
 
-    private static final int TESTS = 10;
+    private static final int TESTS = 100;
     private static final int REPEAT = 1000;
     private static final int SIZE = 1024 * 1024;
 
     private static final byte OPCODE_DATA = 0;
     private static final byte OPCODE_ACK = 1;
-    private static final byte OPCODE_PROFILE = 2;
 
-    private final Pidgin pidgin;
     private final ByteBuffer buffer;
     private final ByteBuffer[] buffers;
 
@@ -55,7 +53,6 @@ public class ThroughputUpcall implements Upcall {
     private final UpcallChannel channel;
 
     public ThroughputUpcall(Pidgin pidgin) throws DuplicateChannelException, IOException {
-        this.pidgin = pidgin;
         this.buffer = ByteBuffer.allocate(SIZE);
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;
@@ -105,9 +102,6 @@ public class ThroughputUpcall implements Upcall {
     public void runTest() throws DuplicateChannelException, IOException, NoSuchChannelException, ChannelNotActiveException {
 
         channel.activate();
-
-        int rank = pidgin.getRank();
-        IbisIdentifier[] ids = pidgin.getAllIdentifiers();
 
         if (rank == 0) {
 
