@@ -17,58 +17,51 @@
 package nl.junglecomputing.pidgin.impl.ibis;
 
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
-import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
+import ibis.ipl.ReadMessage;
 import ibis.ipl.ReceivePort;
-import nl.junglecomputing.pidgin.UpcallChannel;
+import nl.junglecomputing.pidgin.ExplicitChannel;
+import nl.junglecomputing.pidgin.NoSuchSourceException;
 
-public class ClosedPidginUpcallChannel extends PidginChannel implements UpcallChannel {
+public class ExplicitChannelImpl extends ChannelImpl implements ExplicitChannel {
 
-    private static final Logger logger = LoggerFactory.getLogger(PidginChannel.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChannelImpl.class);
 
     private ReceivePort rports[];
 
-    public ClosedPidginUpcallChannel(Ibis ibis, String name, MessageUpcall upcall, IbisIdentifier[] ids) throws IOException {
+    private final ConcurrentHashMap<IbisIdentifier, ReceivePort> receiveports = new ConcurrentHashMap<IbisIdentifier, ReceivePort>();
+
+    public ExplicitChannelImpl(Ibis ibis, String name, IbisIdentifier[] ids) throws IOException {
         super(ibis, name);
 
-        System.err.println("Creating ClosedUpcallChannel " + name);
+        System.err.println("Creating ClosedExplicitChannel " + name);
 
         rports = new ReceivePort[ids.length];
 
-        System.err.println("ClosedUpcallChannel " + name + " has " + ids.length + " members");
+        System.err.println("ClosedExplicitChannel " + name + " has " + ids.length + " members");
 
         for (int i = 0; i < rports.length; i++) {
             if (!ids[i].equals(ibis.identifier())) {
-                rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]), upcall);
+                rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]));
                 rports[i].enableConnections();
 
-                System.err.println("ClosedChannel created RP " + getReceivePortName(ids[i]));
+                receiveports.put(ids[i], rports[i]);
+
+                System.err.println("ClosedExplicitChannel created RP " + getReceivePortName(ids[i]));
             }
         }
     }
 
     @Override
     public void activate() throws IOException {
-
-        int eventNo = -1;
-
-        boolean wasActive = setActive(true);
-
-        if (wasActive) {
-            return;
-        }
-
-        for (int i = 0; i < rports.length; i++) {
-            if (rports[i] != null) {
-                rports[i].enableMessageUpcalls();
-            }
-        }
+        setActive(true);
     }
 
     @Override
@@ -81,7 +74,6 @@ public class ClosedPidginUpcallChannel extends PidginChannel implements UpcallCh
         for (ReceivePort rp : rports) {
             if (rp != null) {
                 rp.disableConnections();
-                rp.disableMessageUpcalls();
             }
         }
     }
@@ -104,6 +96,18 @@ public class ClosedPidginUpcallChannel extends PidginChannel implements UpcallCh
 
     @Override
     protected PortType getPortType() {
-        return PidginImpl.portTypeOneToOneUpcall;
+        return PidginImpl.portTypeOneToOneExplicit;
+    }
+
+    @Override
+    public ReadMessage receiveMessage(IbisIdentifier source, long timeout) throws IOException {
+
+        ReceivePort rp = receiveports.get(source);
+
+        if (rp == null) {
+            throw new NoSuchSourceException("No such source: " + source);
+        }
+
+        return rp.receive(timeout);
     }
 }

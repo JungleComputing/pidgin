@@ -30,9 +30,9 @@ import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.Channel;
 import nl.junglecomputing.pidgin.ChannelNotActiveException;
 
-public abstract class PidginChannel implements Channel {
+public abstract class ChannelImpl implements Channel {
 
-    private static final Logger logger = LoggerFactory.getLogger(PidginChannel.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChannelImpl.class);
 
     private static final long CONNECT_TIMEOUT = 60 * 1000;
 
@@ -44,7 +44,7 @@ public abstract class PidginChannel implements Channel {
 
     private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
 
-    protected PidginChannel(Ibis ibis, String name) {
+    protected ChannelImpl(Ibis ibis, String name) {
         this.ibis = ibis;
         this.name = name;
     }

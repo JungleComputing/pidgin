@@ -49,9 +49,9 @@ public interface Pidgin {
     public IbisIdentifier elect(String electTag) throws IOException;
 
     // Create communication channels for upcall and explicit receipt.
-    public UpcallChannel createUpcallChannel(String name, IbisIdentifier[] participants, MessageUpcall upcall) throws DuplicateChannelException, IOException;
+    public MessageUpcallChannel createUpcallChannel(String name, IbisIdentifier[] participants, MessageUpcall upcall) throws DuplicateChannelException, IOException;
 
-    public default UpcallChannel createUpcallChannel(String name, MessageUpcall upcall) throws DuplicateChannelException, IOException {
+    public default MessageUpcallChannel createUpcallChannel(String name, MessageUpcall upcall) throws DuplicateChannelException, IOException {
         return createUpcallChannel(name, getAllIdentifiers(), upcall);
     }
 

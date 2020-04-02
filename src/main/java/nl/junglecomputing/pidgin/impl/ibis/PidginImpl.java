@@ -31,8 +31,8 @@ import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
 import nl.junglecomputing.pidgin.DuplicateChannelException;
 import nl.junglecomputing.pidgin.ExplicitChannel;
+import nl.junglecomputing.pidgin.MessageUpcallChannel;
 import nl.junglecomputing.pidgin.Pidgin;
-import nl.junglecomputing.pidgin.UpcallChannel;
 
 public class PidginImpl implements Pidgin {
 
@@ -159,9 +159,10 @@ public class PidginImpl implements Pidgin {
     // }
 
     @Override
-    public UpcallChannel createUpcallChannel(String name, IbisIdentifier[] praticipants, MessageUpcall upcall) throws DuplicateChannelException, IOException {
+    public MessageUpcallChannel createUpcallChannel(String name, IbisIdentifier[] praticipants, MessageUpcall upcall)
+            throws DuplicateChannelException, IOException {
 
-        System.err.println("Creating upcall channel " + name);
+        logger.info("Creating MessageUpcallChannel " + name);
 
         synchronized (channels) {
             if (channels.contains(name)) {
@@ -171,13 +172,13 @@ public class PidginImpl implements Pidgin {
             channels.add(name);
         }
 
-        return new ClosedPidginUpcallChannel(ibis, name, upcall, ids);
+        return new MessageUpcallChannelImpl(ibis, name, upcall, ids);
     }
 
     @Override
     public ExplicitChannel createExplicitChannel(String name, IbisIdentifier[] praticipants) throws DuplicateChannelException, IOException {
 
-        System.err.println("Creating explicit channel " + name);
+        logger.info("Creating ExplicitChannel " + name);
 
         synchronized (channels) {
             if (channels.contains(name)) {
@@ -187,7 +188,7 @@ public class PidginImpl implements Pidgin {
             channels.add(name);
         }
 
-        return new ClosedPidginExplicitChannel(ibis, name, ids);
+        return new ExplicitChannelImpl(ibis, name, ids);
     }
 
     // @Override

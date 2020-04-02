@@ -20,28 +20,26 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Properties;
 
-import nl.junglecomputing.pidgin.Channel;
+import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
+import ibis.ipl.ReadMessage;
+import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.ChannelNotActiveException;
 import nl.junglecomputing.pidgin.DuplicateChannelException;
 import nl.junglecomputing.pidgin.NoSuchChannelException;
-import nl.junglecomputing.pidgin.NodeIdentifier;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.PidginFactory;
-import nl.junglecomputing.pidgin.Upcall;
-import nl.junglecomputing.timer.Profiling;
-import nl.junglecomputing.timer.Timer;
+import nl.junglecomputing.pidgin.MessageUpcallChannel;
 
-public class Throughput implements Upcall {
+public class ThroughputMessageUpcallFinish implements MessageUpcall {
 
     private static final String CHANNEL = "tp";
 
-    private static final int TESTS = 10;
+    private static final int TESTS = 100;
     private static final int REPEAT = 1000;
     private static final int SIZE = 1024 * 1024;
 
-    private static final byte OPCODE_DATA = 0;
     private static final byte OPCODE_ACK = 1;
-    private static final byte OPCODE_PROFILE = 2;
 
     private final Pidgin pidgin;
     private final ByteBuffer buffer;
@@ -51,31 +49,35 @@ public class Throughput implements Upcall {
     private int count = 0;
 
     private final int rank;
-    private final NodeIdentifier[] ids;
+    private final IbisIdentifier[] ids;
 
-    private final Channel channel;
+    private final MessageUpcallChannel channel;
 
-    private final Profiling p;
-
-    private int eventNo;
-    private Timer overall;
-
-    public Throughput(Pidgin pidgin) throws DuplicateChannelException, IOException {
+    public ThroughputMessageUpcallFinish(Pidgin pidgin) throws DuplicateChannelException, IOException {
         this.pidgin = pidgin;
         this.buffer = ByteBuffer.allocate(SIZE);
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;
+
         rank = pidgin.getRank();
         ids = pidgin.getAllIdentifiers();
 
-        p = new Profiling("rank " + rank);
+        channel = pidgin.createUpcallChannel(CHANNEL, this);
+    }
 
-        overall = p.getOverallTimer();
-        eventNo = overall.start();
-
-        Timer t = p.getTimer();
-
-        channel = pidgin.createChannel(CHANNEL, this, t);
+    @Override
+    public void upcall(ReadMessage readMessage) throws IOException, ClassNotFoundException {
+        if (rank == 0) {
+            buffer.position(0);
+            buffer.limit(buffer.capacity());
+            readMessage.readByteBuffer(buffer);
+            readMessage.finish();
+            incCount();
+        } else {
+            readMessage.readByte();
+            readMessage.finish();
+            gotAck();
+        }
     }
 
     private synchronized void waitForAck() {
@@ -86,8 +88,6 @@ public class Throughput implements Upcall {
                 // ignore
             }
         }
-
-        // System.err.println("woke on ACK");
 
         ack = false;
     }
@@ -106,15 +106,11 @@ public class Throughput implements Upcall {
             }
         }
 
-        // System.err.println("woke on " + count + " " + REPEAT);
-
         count = 0;
     }
 
     private synchronized void incCount() {
         count++;
-
-        // System.err.println("got message " + count + " " + REPEAT);
 
         if (count == REPEAT) {
             notifyAll();
@@ -125,14 +121,13 @@ public class Throughput implements Upcall {
 
         channel.activate();
 
-        int rank = pidgin.getRank();
-        NodeIdentifier[] ids = pidgin.getAllIdentifiers();
-
         if (rank == 0) {
 
             for (int t = 0; t < TESTS; t++) {
                 waitForCount();
-                channel.sendMessage(ids[1], OPCODE_ACK, null);
+                WriteMessage wm = channel.sendMessage(ids[1]);
+                wm.writeByte(OPCODE_ACK);
+                wm.finish();
             }
 
         } else {
@@ -144,7 +139,9 @@ public class Throughput implements Upcall {
                     buffer.position(0);
                     buffer.limit(buffer.capacity());
 
-                    channel.sendMessage(ids[0], OPCODE_DATA, null, buffer);
+                    WriteMessage wm = channel.sendMessage(ids[0]);
+                    wm.writeByteBuffer(buffer);
+                    wm.finish();
                 }
 
                 waitForAck();
@@ -159,27 +156,6 @@ public class Throughput implements Upcall {
         }
 
         channel.deactivate();
-
-        overall.stop(eventNo);
-
-        p.printProfile("tp." + rank);
-    }
-
-    @Override
-    public ByteBuffer[] allocateByteBuffers(String channel, NodeIdentifier sender, byte opcode, Object data, int[] sizes) {
-        // only called in the master
-        buffer.position(0);
-        buffer.limit(buffer.capacity());
-        return buffers;
-    }
-
-    @Override
-    public void receiveMessage(String channel, NodeIdentifier sender, byte opcode, Object data, ByteBuffer[] buffers) {
-        if (rank == 0) {
-            incCount();
-        } else {
-            gotAck();
-        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -193,8 +169,9 @@ public class Throughput implements Upcall {
             System.exit(1);
         }
 
-        new Throughput(p).runTest();
+        new ThroughputMessageUpcallFinish(p).runTest();
 
         PidginFactory.terminate();
     }
+
 }
