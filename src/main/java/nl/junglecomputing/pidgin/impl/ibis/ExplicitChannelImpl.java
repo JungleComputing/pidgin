@@ -32,7 +32,7 @@ import nl.junglecomputing.pidgin.NoSuchSourceException;
 
 public class ExplicitChannelImpl extends ChannelImpl implements ExplicitChannel {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChannelImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(ExplicitChannelImpl.class);
 
     private ReceivePort rports[];
 

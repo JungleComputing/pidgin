@@ -33,6 +33,8 @@ import nl.junglecomputing.pidgin.DuplicateChannelException;
 import nl.junglecomputing.pidgin.ExplicitChannel;
 import nl.junglecomputing.pidgin.MessageUpcallChannel;
 import nl.junglecomputing.pidgin.Pidgin;
+import nl.junglecomputing.pidgin.Upcall;
+import nl.junglecomputing.pidgin.UpcallChannel;
 
 public class PidginImpl implements Pidgin {
 
@@ -158,12 +160,7 @@ public class PidginImpl implements Pidgin {
     // }
     // }
 
-    @Override
-    public MessageUpcallChannel createUpcallChannel(String name, IbisIdentifier[] praticipants, MessageUpcall upcall)
-            throws DuplicateChannelException, IOException {
-
-        logger.info("Creating MessageUpcallChannel " + name);
-
+    private final void checkChannelName(String name) throws DuplicateChannelException {
         synchronized (channels) {
             if (channels.contains(name)) {
                 throw new DuplicateChannelException("Channel already exists " + name);
@@ -171,6 +168,25 @@ public class PidginImpl implements Pidgin {
 
             channels.add(name);
         }
+    }
+
+    @Override
+    public UpcallChannel createUpcallChannel(String name, IbisIdentifier[] participants, Upcall upcall) throws DuplicateChannelException, IOException {
+
+        logger.info("Creating UpcallChannel " + name);
+
+        checkChannelName(name);
+
+        return new UpcallChannelImpl(ibis, name, upcall, ids);
+    }
+
+    @Override
+    public MessageUpcallChannel createMessageUpcallChannel(String name, IbisIdentifier[] praticipants, MessageUpcall upcall)
+            throws DuplicateChannelException, IOException {
+
+        logger.info("Creating MessageUpcallChannel " + name);
+
+        checkChannelName(name);
 
         return new MessageUpcallChannelImpl(ibis, name, upcall, ids);
     }
@@ -180,13 +196,7 @@ public class PidginImpl implements Pidgin {
 
         logger.info("Creating ExplicitChannel " + name);
 
-        synchronized (channels) {
-            if (channels.contains(name)) {
-                throw new DuplicateChannelException("Channel already exists " + name);
-            }
-
-            channels.add(name);
-        }
+        checkChannelName(name);
 
         return new ExplicitChannelImpl(ibis, name, ids);
     }

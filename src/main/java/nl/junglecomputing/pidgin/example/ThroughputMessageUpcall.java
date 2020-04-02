@@ -62,7 +62,7 @@ public class ThroughputMessageUpcall implements MessageUpcall {
         rank = pidgin.getRank();
         ids = pidgin.getAllIdentifiers();
 
-        channel = pidgin.createUpcallChannel(CHANNEL, this);
+        channel = pidgin.createMessageUpcallChannel(CHANNEL, this);
     }
 
     @Override

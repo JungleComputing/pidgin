@@ -30,7 +30,7 @@ import nl.junglecomputing.pidgin.MessageUpcallChannel;
 
 public class MessageUpcallChannelImpl extends ChannelImpl implements MessageUpcallChannel {
 
-    private static final Logger logger = LoggerFactory.getLogger(ChannelImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(MessageUpcallChannelImpl.class);
 
     private ReceivePort rports[];
 
