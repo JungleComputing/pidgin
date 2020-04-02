@@ -16,13 +16,19 @@
  */
 package nl.junglecomputing.pidgin;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.ReadMessage;
+import ibis.ipl.WriteMessage;
 
-public interface Upcall {
+public interface ExplicitChannel extends Channel {
 
-    ByteBuffer[] allocateByteBuffers(String channel, IbisIdentifier sender, byte opcode, Object data, int[] sizes);
+    public WriteMessage sendMessage(IbisIdentifier dest) throws IOException;
 
-    void receiveMessage(String channel, IbisIdentifier sender, byte opcode, Object data, ByteBuffer[] buffers);
+    public ReadMessage receiveMessage(IbisIdentifier source, long timeout) throws IOException;
+
+    public default ReadMessage receiveMessage(IbisIdentifier source) throws IOException {
+        return receiveMessage(source, 0L);
+    }
 }

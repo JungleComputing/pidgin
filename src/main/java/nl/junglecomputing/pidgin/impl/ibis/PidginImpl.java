@@ -17,7 +17,7 @@
 package nl.junglecomputing.pidgin.impl.ibis;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -27,120 +27,86 @@ import ibis.ipl.Ibis;
 import ibis.ipl.IbisCapabilities;
 import ibis.ipl.IbisFactory;
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
-import ibis.ipl.RegistryEventHandler;
-import nl.junglecomputing.pidgin.Channel;
 import nl.junglecomputing.pidgin.DuplicateChannelException;
-import nl.junglecomputing.pidgin.NoSuchChannelException;
-import nl.junglecomputing.pidgin.NodeIdentifier;
+import nl.junglecomputing.pidgin.ExplicitChannel;
+import nl.junglecomputing.pidgin.MessageUpcallChannel;
 import nl.junglecomputing.pidgin.Pidgin;
 import nl.junglecomputing.pidgin.Upcall;
-import nl.junglecomputing.timer.Timer;
-import nl.junglecomputing.timer.TimerImpl;
+import nl.junglecomputing.pidgin.UpcallChannel;
 
-public class PidginImpl implements Pidgin, RegistryEventHandler {
+public class PidginImpl implements Pidgin {
 
     private static final Logger logger = LoggerFactory.getLogger(PidginImpl.class);
 
-    protected static final PortType portTypeManyToOne = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
+    protected static final PortType portTypeManyToOneUpcall = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
             PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_AUTO_UPCALLS, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_MANY_TO_ONE);
 
-    protected static final PortType portTypeOneToOne = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE, PortType.SERIALIZATION_OBJECT,
-            PortType.RECEIVE_AUTO_UPCALLS, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE);
+    protected static final PortType portTypeOneToOneUpcall = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
+            PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_AUTO_UPCALLS, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE);
 
-    private static final IbisCapabilities openIbisCapabilities = new IbisCapabilities(IbisCapabilities.MALLEABLE, IbisCapabilities.TERMINATION,
-            IbisCapabilities.ELECTIONS_STRICT, IbisCapabilities.MEMBERSHIP_TOTALLY_ORDERED);
+    protected static final PortType portTypeOneToOneExplicit = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
+            PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_TIMEOUT, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE);
 
     private static final IbisCapabilities closedIbisCapabilities = new IbisCapabilities(IbisCapabilities.CLOSED_WORLD, IbisCapabilities.TERMINATION,
             IbisCapabilities.ELECTIONS_STRICT, IbisCapabilities.MEMBERSHIP_TOTALLY_ORDERED);
 
-    private Ibis ibis;
+    private final Ibis ibis;
 
     private final IbisIdentifier master;
 
     private final IbisIdentifier local;
 
-    private final HashMap<String, PidginChannel> channels = new HashMap<>();
+    private final HashSet<String> channels = new HashSet<>();
 
     private int rank = -1;
 
-    private final boolean closedPool;
-
     private final boolean isMaster;
 
-    private IbisIdentifier[] ids = null;
-
-    private final Properties properties;
-
-    // private TimerImpl communicationTimer;
-    //
-    // private final Profiling profiling;
+    private final IbisIdentifier[] ids;
 
     public PidginImpl(final Properties properties) throws Exception {
 
-        closedPool = true; // properties.CLOSED;
-        this.properties = properties;
+        ibis = IbisFactory.createIbis(closedIbisCapabilities, properties, true, null, portTypeManyToOneUpcall, portTypeOneToOneUpcall,
+                portTypeOneToOneExplicit);
 
-        ibis = IbisFactory.createIbis(closedPool ? closedIbisCapabilities : openIbisCapabilities, properties, true, closedPool ? null : this, portTypeManyToOne,
-                portTypeOneToOne);
+        ibis.registry().waitUntilPoolClosed();
+        ids = ibis.registry().joinedIbises();
 
-        if (closedPool) {
-            ibis.registry().waitUntilPoolClosed();
-            ids = ibis.registry().joinedIbises();
-        } else {
-            ibis.registry().enableEvents();
-        }
-
-        boolean canBeMaster = true; // properties.MASTER;
-
-        if (canBeMaster) {
-            // Elect a server
-            master = ibis.registry().elect("Pidgin Master");
-        } else {
-            master = ibis.registry().getElectionResult("Pidgin Master");
-        }
+        master = ibis.registry().elect("Pidgin Master");
 
         local = ibis.identifier();
 
         isMaster = master.equals(local);
 
         // We determine our rank here. This rank should only be used for debugging purposes!
-        if (closedPool) {
-            for (int i = 0; i < ids.length; i++) {
-                if (ids[i].equals(local)) {
-                    rank = i;
-                    break;
-                }
+        for (int i = 0; i < ids.length; i++) {
+            if (ids[i].equals(local)) {
+                rank = i;
+                break;
             }
         }
-
-        if (rank == -1) {
-            rank = (int) ibis.registry().getSequenceNumber("pidgin-" + master.toString());
-        }
-
-        // String tmp = properties.getProperty(ConstellationProperties.S_PREFIX + "rank");
-
-        // if (tmp != null) {
-        // try {
-        // rank = Integer.parseInt(tmp);
-        // } catch (Exception e) {
-        // logger.error("Failed to parse rank: " + tmp);
-        // }
-        // }
-        //
-        // if (rank == -1) {
-        // rank = (int) ibis.registry().getSequenceNumber("pidgin-" + master.toString());
-        // }
     }
 
     @Override
-    public NodeIdentifier getMaster() {
-        return new NodeIdentifierImpl(master);
+    public Ibis getIbis() {
+        return ibis;
     }
 
     @Override
-    public NodeIdentifier getMyIdentifier() {
-        return new NodeIdentifierImpl(local);
+    public IbisIdentifier getMaster() {
+        return master;
+    }
+
+    @Override
+    public IbisIdentifier getMyIdentifier() {
+        return local;
+    }
+
+    @Override
+    public boolean isMaster() {
+        return isMaster;
     }
 
     @Override
@@ -150,9 +116,9 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
 
     public void terminate() throws IOException {
 
-        for (Channel c : channels.values()) {
-            c.deactivate();
-        }
+        // for (Channel c : channels.values()) {
+        // c.deactivate();
+        // }
 
         if (local.equals(master)) {
             ibis.registry().terminate();
@@ -167,109 +133,72 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
     }
 
     @Override
-    public void died(IbisIdentifier id) {
-        left(id);
+    public IbisIdentifier getElectionResult(String electTag, long timeout) throws IOException {
+        return ibis.registry().getElectionResult(electTag, timeout);
     }
 
     @Override
-    public void electionResult(String arg0, IbisIdentifier arg1) {
-        // ignored
-
+    public IbisIdentifier elect(String electTag) throws IOException {
+        return ibis.registry().elect(electTag);
     }
 
     @Override
-    public void gotSignal(String arg0, IbisIdentifier arg1) {
-        // ignored
-
+    public IbisIdentifier[] getAllIdentifiers() {
+        return ids;
     }
 
-    @Override
-    public void joined(IbisIdentifier arg0) {
-        // ignored
-    }
+    // public Channel getChannel(String name) throws NoSuchChannelException {
+    //
+    // synchronized (channels) {
+    // PidginChannel c = channels.get(name);
+    //
+    // if (c == null) {
+    // throw new NoSuchChannelException("Channel " + name + " not found!");
+    // }
+    //
+    // return c;
+    // }
+    // }
 
-    @Override
-    public void left(IbisIdentifier arg0) {
-        // ignored
-    }
-
-    @Override
-    public void poolClosed() {
-        // ignored
-
-    }
-
-    @Override
-    public void poolTerminated(IbisIdentifier arg0) {
-        // ignored
-
-    }
-
-    @Override
-    public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException {
-        IbisIdentifier id = ibis.registry().getElectionResult(electTag, timeout);
-        if (id != null) {
-            return new NodeIdentifierImpl(id);
-        }
-        return null;
-    }
-
-    @Override
-    public NodeIdentifier elect(String electTag) throws IOException {
-        return new NodeIdentifierImpl(ibis.registry().elect(electTag));
-    }
-
-    @Override
-    public NodeIdentifier[] getNodeIdentifiers() {
-        if (!closedPool) {
-            return null;
-        }
-        NodeIdentifier[] result = new NodeIdentifier[ids.length];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = new NodeIdentifierImpl(ids[i]);
-        }
-        return result;
-    }
-
-    public Channel getChannel(String name) throws NoSuchChannelException {
-
+    private final void checkChannelName(String name) throws DuplicateChannelException {
         synchronized (channels) {
-            PidginChannel c = channels.get(name);
-
-            if (c == null) {
-                throw new NoSuchChannelException("Channel " + name + " not found!");
-            }
-
-            return c;
-        }
-    }
-
-    @Override
-    public Channel createChannel(String name, Upcall upcall, Timer timer) throws DuplicateChannelException, IOException {
-
-        System.err.println("Creating channel " + name);
-
-        PidginChannel p = null;
-
-        synchronized (channels) {
-            if (channels.containsKey(name)) {
+            if (channels.contains(name)) {
                 throw new DuplicateChannelException("Channel already exists " + name);
             }
 
-            TimerImpl t = null;
-
-            if (closedPool) {
-                p = new ClosedPidginChannel(ibis, name, upcall, ids, timer);
-            } else {
-                p = new OpenPidginChannel(ibis, name, upcall, timer);
-            }
-
-            channels.put(name, p);
+            channels.add(name);
         }
+    }
 
-        System.err.println("Created channel " + name);
+    @Override
+    public UpcallChannel createUpcallChannel(String name, IbisIdentifier[] participants, Upcall upcall) throws DuplicateChannelException, IOException {
 
-        return p;
+        logger.info("Creating UpcallChannel " + name);
+
+        checkChannelName(name);
+
+        return new UpcallChannelImpl(ibis, name, upcall, ids);
+    }
+
+    @Override
+    public MessageUpcallChannel createMessageUpcallChannel(String name, IbisIdentifier[] praticipants, MessageUpcall upcall)
+            throws DuplicateChannelException, IOException {
+
+        logger.info("Creating MessageUpcallChannel " + name);
+
+        checkChannelName(name);
+
+        return new MessageUpcallChannelImpl(ibis, name, upcall, ids);
+    }
+
+    @Override
+    public ExplicitChannel createExplicitChannel(String name, IbisIdentifier[] praticipants) throws DuplicateChannelException, IOException {
+
+        logger.info("Creating ExplicitChannel " + name);
+
+        checkChannelName(name);
+
+        return new ExplicitChannelImpl(ibis, name, ids);
     }
 
     // @Override
@@ -280,22 +209,4 @@ public class PidginImpl implements Pidgin, RegistryEventHandler {
     // getChannel(name).activate();
     // }
 
-    @Override
-    public void removeChannel(String name) throws IOException {
-
-        PidginChannel c = null;
-
-        synchronized (channels) {
-            c = channels.remove(name);
-        }
-
-        if (c != null) {
-            c.deactivate();
-        }
-    }
-
-    @Override
-    public boolean isMaster() {
-        return isMaster;
-    }
 }

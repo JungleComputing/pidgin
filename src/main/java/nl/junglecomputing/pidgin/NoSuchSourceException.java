@@ -16,13 +16,13 @@
  */
 package nl.junglecomputing.pidgin;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 
-import ibis.ipl.IbisIdentifier;
+public class NoSuchSourceException extends IOException {
 
-public interface Upcall {
+    private static final long serialVersionUID = -4049048203147340510L;
 
-    ByteBuffer[] allocateByteBuffers(String channel, IbisIdentifier sender, byte opcode, Object data, int[] sizes);
-
-    void receiveMessage(String channel, IbisIdentifier sender, byte opcode, Object data, ByteBuffer[] buffers);
+    public NoSuchSourceException(String message) {
+        super(message);
+    }
 }

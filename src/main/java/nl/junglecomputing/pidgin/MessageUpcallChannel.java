@@ -16,10 +16,12 @@
  */
 package nl.junglecomputing.pidgin;
 
-import java.io.Serializable;
+import java.io.IOException;
 
-public interface NodeIdentifier extends Serializable {
+import ibis.ipl.IbisIdentifier;
+import ibis.ipl.WriteMessage;
 
-    public String name();
+public interface MessageUpcallChannel extends Channel {
 
+    public WriteMessage sendMessage(IbisIdentifier dest) throws IOException;
 }

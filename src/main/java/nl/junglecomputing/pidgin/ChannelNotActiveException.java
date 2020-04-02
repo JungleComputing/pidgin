@@ -16,7 +16,9 @@
  */
 package nl.junglecomputing.pidgin;
 
-public class ChannelNotActiveException extends Exception {
+import java.io.IOException;
+
+public class ChannelNotActiveException extends IOException {
 
     private static final long serialVersionUID = 6444413188783487287L;
 
