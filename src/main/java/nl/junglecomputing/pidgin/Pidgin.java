@@ -18,7 +18,9 @@ package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
 
-import nl.junglecomputing.timer.Timer;
+import ibis.ipl.Ibis;
+import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 
 /**
  * Pidgin provided a simple communication layer based on a fixed set of nodes.
@@ -28,27 +30,34 @@ import nl.junglecomputing.timer.Timer;
 
 public interface Pidgin {
 
+    public Ibis getIbis();
+
     public int getRank();
 
     public int getPoolSize();
 
-    public NodeIdentifier[] getNodeIdentifiers();
-
-    public NodeIdentifier getMyIdentifier();
-
-    public NodeIdentifier getMaster();
-
     public boolean isMaster();
 
-    public NodeIdentifier getElectionResult(String electTag, long timeout) throws IOException;
+    public IbisIdentifier[] getAllIdentifiers();
 
-    public NodeIdentifier elect(String electTag) throws IOException;
+    public IbisIdentifier getMyIdentifier();
 
-    // Channel management
-    public Channel createChannel(String name, Upcall upcall, Timer profiling) throws DuplicateChannelException, IOException;
+    public IbisIdentifier getMaster();
 
-    public Channel getChannel(String name) throws NoSuchChannelException;
+    public IbisIdentifier getElectionResult(String electTag, long timeout) throws IOException;
 
-    public void removeChannel(String name) throws NoSuchChannelException, IOException;
+    public IbisIdentifier elect(String electTag) throws IOException;
 
+    // Create communication channels for upcall and explicit receipt.
+    public UpcallChannel createUpcallChannel(String name, IbisIdentifier[] participants, MessageUpcall upcall) throws DuplicateChannelException, IOException;
+
+    public default UpcallChannel createUpcallChannel(String name, MessageUpcall upcall) throws DuplicateChannelException, IOException {
+        return createUpcallChannel(name, getAllIdentifiers(), upcall);
+    }
+
+    public ExplicitChannel createExplicitChannel(String name, IbisIdentifier[] participants) throws DuplicateChannelException, IOException;
+
+    public default ExplicitChannel createExplicitChannel(String name) throws DuplicateChannelException, IOException {
+        return createExplicitChannel(name, getAllIdentifiers());
+    }
 }

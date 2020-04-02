@@ -16,10 +16,13 @@
  */
 package nl.junglecomputing.pidgin;
 
-import java.io.Serializable;
+import java.io.IOException;
 
-public interface NodeIdentifier extends Serializable {
+public class NoSuchSourceException extends IOException {
 
-    public String name();
+    private static final long serialVersionUID = -4049048203147340510L;
 
+    public NoSuchSourceException(String message) {
+        super(message);
+    }
 }

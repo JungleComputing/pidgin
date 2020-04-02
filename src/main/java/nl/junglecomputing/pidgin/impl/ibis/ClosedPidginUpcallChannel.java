@@ -23,29 +23,29 @@ import org.slf4j.LoggerFactory;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
+import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
 import ibis.ipl.ReceivePort;
-import nl.junglecomputing.pidgin.Upcall;
-import nl.junglecomputing.timer.Timer;
+import nl.junglecomputing.pidgin.UpcallChannel;
 
-public class ClosedPidginChannel extends PidginChannel {
+public class ClosedPidginUpcallChannel extends PidginChannel implements UpcallChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(PidginChannel.class);
 
     private ReceivePort rports[];
 
-    public ClosedPidginChannel(Ibis ibis, String name, Upcall upcall, IbisIdentifier[] ids, Timer timing) throws IOException {
-        super(ibis, name, upcall, timing);
+    public ClosedPidginUpcallChannel(Ibis ibis, String name, MessageUpcall upcall, IbisIdentifier[] ids) throws IOException {
+        super(ibis, name);
 
-        System.err.println("Creating ClosedChannel " + name);
+        System.err.println("Creating ClosedUpcallChannel " + name);
 
         rports = new ReceivePort[ids.length];
 
-        System.err.println("ClosedChannel " + name + " has " + ids.length + " members");
+        System.err.println("ClosedUpcallChannel " + name + " has " + ids.length + " members");
 
         for (int i = 0; i < rports.length; i++) {
             if (!ids[i].equals(ibis.identifier())) {
-                rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]), this);
+                rports[i] = ibis.createReceivePort(getPortType(), getReceivePortName(ids[i]), upcall);
                 rports[i].enableConnections();
 
                 System.err.println("ClosedChannel created RP " + getReceivePortName(ids[i]));
@@ -64,18 +64,10 @@ public class ClosedPidginChannel extends PidginChannel {
             return;
         }
 
-        if (communicationTimer != null) {
-            eventNo = communicationTimer.start("pidgin activi channel " + name);
-        }
-
         for (int i = 0; i < rports.length; i++) {
             if (rports[i] != null) {
                 rports[i].enableMessageUpcalls();
             }
-        }
-
-        if (eventNo != -1) {
-            communicationTimer.stop(eventNo);
         }
     }
 
@@ -112,6 +104,6 @@ public class ClosedPidginChannel extends PidginChannel {
 
     @Override
     protected PortType getPortType() {
-        return PidginImpl.portTypeOneToOne;
+        return PidginImpl.portTypeOneToOneUpcall;
     }
 }

@@ -66,7 +66,7 @@ public class Throughput implements Upcall {
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;
         rank = pidgin.getRank();
-        ids = pidgin.getNodeIdentifiers();
+        ids = pidgin.getAllIdentifiers();
 
         p = new Profiling("rank " + rank);
 
@@ -126,7 +126,7 @@ public class Throughput implements Upcall {
         channel.activate();
 
         int rank = pidgin.getRank();
-        NodeIdentifier[] ids = pidgin.getNodeIdentifiers();
+        NodeIdentifier[] ids = pidgin.getAllIdentifiers();
 
         if (rank == 0) {
 

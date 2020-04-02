@@ -17,16 +17,10 @@
 package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 public interface Channel {
 
     public void activate() throws IOException;
 
-    public boolean sendMessage(NodeIdentifier dest, byte opcode, Object data, ByteBuffer... buffers);
-
-    public void disconnect(NodeIdentifier dest);
-
     public void deactivate() throws IOException;
-
 }

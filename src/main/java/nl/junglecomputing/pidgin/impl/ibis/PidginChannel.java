@@ -17,7 +17,6 @@
 package nl.junglecomputing.pidgin.impl.ibis;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -25,17 +24,13 @@ import org.slf4j.LoggerFactory;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
-import ibis.ipl.MessageUpcall;
 import ibis.ipl.PortType;
-import ibis.ipl.ReadMessage;
 import ibis.ipl.SendPort;
 import ibis.ipl.WriteMessage;
 import nl.junglecomputing.pidgin.Channel;
-import nl.junglecomputing.pidgin.NodeIdentifier;
-import nl.junglecomputing.pidgin.Upcall;
-import nl.junglecomputing.timer.Timer;
+import nl.junglecomputing.pidgin.ChannelNotActiveException;
 
-public abstract class PidginChannel implements Channel, MessageUpcall {
+public abstract class PidginChannel implements Channel {
 
     private static final Logger logger = LoggerFactory.getLogger(PidginChannel.class);
 
@@ -45,19 +40,13 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
 
     protected final String name;
 
-    private Upcall upcall;
-
     private boolean active = false;
-
-    protected final Timer communicationTimer;
 
     private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
 
-    protected PidginChannel(Ibis ibis, String name, Upcall upcall, Timer timer) {
+    protected PidginChannel(Ibis ibis, String name) {
         this.ibis = ibis;
         this.name = name;
-        this.upcall = upcall;
-        this.communicationTimer = timer;
     }
 
     protected final String getName() {
@@ -105,22 +94,6 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
         closeSendPorts();
 
         closeReceivePorts();
-    }
-
-    @Override
-    public void disconnect(NodeIdentifier dest) {
-
-        IbisIdentifier id = ((NodeIdentifierImpl) dest).getIbisIdentifier();
-
-        SendPort s = sendports.remove(id);
-
-        if (s != null) {
-            try {
-                s.close();
-            } catch (Exception e) {
-                logger.warn("Failed to close sendport", e);
-            }
-        }
     }
 
     protected abstract String getReceivePortName(IbisIdentifier id);
@@ -191,126 +164,96 @@ public abstract class PidginChannel implements Channel, MessageUpcall {
         return sp;
     }
 
-    public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
+    public WriteMessage sendMessage(IbisIdentifier destination) throws IOException {
 
         if (!isActive()) {
-            return false;
-        }
-
-        long sz = 0;
-        int eventNo = -1;
-        SendPort s = null;
-        WriteMessage wm = null;
-
-        if (communicationTimer != null) {
-            eventNo = communicationTimer.start("pidgin " + name + " send message");
-        }
-
-        IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
-
-        try {
-            s = getSendPort(dest);
-        } catch (IOException e) {
-            logger.warn("Failed to connect to " + dest, e);
-            return false;
+            throw new ChannelNotActiveException("Cannot send message, channel " + name + " not active");
         }
 
         try {
-            wm = s.newMessage();
-            wm.writeByte(opcode);
-
-            if (data == null) {
-                wm.writeBoolean(false);
-            } else {
-                wm.writeBoolean(true);
-                wm.writeObject(data);
-            }
-
-            if (buffers == null || buffers.length == 0) {
-                wm.writeInt(0);
-            } else {
-                wm.writeInt(buffers.length);
-
-                for (ByteBuffer b : buffers) {
-                    if (b == null) {
-                        wm.writeInt(0);
-                    } else {
-                        wm.writeInt(b.remaining());
-                    }
-                }
-
-                for (ByteBuffer b : buffers) {
-                    if (b != null) {
-                        wm.writeByteBuffer(b);
-                    }
-                }
-            }
-
-            sz = wm.finish();
-
-            if (eventNo != -1) {
-                communicationTimer.stop(eventNo);
-                communicationTimer.addBytes(sz, eventNo);
-            }
+            return getSendPort(destination).newMessage();
         } catch (IOException e) {
-            logger.warn("Communication to " + dest + " gave exception", e);
-            if (wm != null) {
-                wm.finish(e);
-            }
-            if (eventNo != -1) {
-                communicationTimer.cancel(eventNo);
-            }
-            return false;
+            logger.warn("Failed to connect to " + destination, e);
+            throw e;
         }
-
-        return true;
     }
 
-    @Override
-    public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
-
-        NodeIdentifier source = new NodeIdentifierImpl(rm.origin().ibisIdentifier());
-        int timerEvent = -1;
-
-        if (communicationTimer != null) {
-            timerEvent = communicationTimer.start("pidgin read message");
-        }
-
-        byte opcode = rm.readByte();
-        boolean hasObject = rm.readBoolean();
-
-        Object data = null;
-
-        if (hasObject) {
-            data = rm.readObject();
-        }
-
-        int bufferCount = rm.readInt();
-
-        ByteBuffer[] buffers = null;
-
-        if (bufferCount > 0) {
-            int[] sizes = new int[bufferCount];
-
-            for (int i = 0; i < bufferCount; i++) {
-                sizes[i] = rm.readInt();
-            }
-
-            buffers = upcall.allocateByteBuffers(name, source, opcode, data, sizes);
-
-            for (int i = 0; i < bufferCount; i++) {
-                // TODO: We should check if the buffers[i] is actually valid and has the reading space?
-                rm.readByteBuffer(buffers[i]);
-            }
-        }
-
-        long sz = rm.finish();
-
-        if (timerEvent != -1) {
-            communicationTimer.stop(timerEvent);
-            communicationTimer.addBytes(sz, timerEvent);
-        }
-
-        upcall.receiveMessage(name, source, opcode, data, buffers);
-    }
+    /*
+     * public boolean sendMessage(NodeIdentifier destination, byte opcode, Object data, ByteBuffer... buffers) {
+     * 
+     * if (!isActive()) { return false; }
+     * 
+     * long sz = 0; int eventNo = -1; SendPort s = null; WriteMessage wm = null;
+     * 
+     * if (communicationTimer != null) { eventNo = communicationTimer.start("pidgin " + name + " send message"); }
+     * 
+     * IbisIdentifier dest = ((NodeIdentifierImpl) destination).getIbisIdentifier();
+     * 
+     * try { s = getSendPort(dest); } catch (IOException e) { logger.warn("Failed to connect to " + dest, e); return false; }
+     * 
+     * try { wm = s.newMessage(); wm.writeByte(opcode);
+     * 
+     * if (data == null) { wm.writeBoolean(false); } else { wm.writeBoolean(true); wm.writeObject(data); }
+     * 
+     * if (buffers == null || buffers.length == 0) { wm.writeInt(0); } else { wm.writeInt(buffers.length);
+     * 
+     * for (ByteBuffer b : buffers) { if (b == null) { wm.writeInt(0); } else { wm.writeInt(b.remaining()); } }
+     * 
+     * for (ByteBuffer b : buffers) { if (b != null) { wm.writeByteBuffer(b); } } }
+     * 
+     * sz = wm.finish();
+     * 
+     * if (eventNo != -1) { communicationTimer.stop(eventNo); communicationTimer.addBytes(sz, eventNo); } } catch (IOException e) {
+     * logger.warn("Communication to " + dest + " gave exception", e); if (wm != null) { wm.finish(e); } if (eventNo != -1) {
+     * communicationTimer.cancel(eventNo); } return false; }
+     * 
+     * return true; }
+     */
+    // @Override
+    // public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+    //
+    // NodeIdentifier source = new NodeIdentifierImpl(rm.origin().ibisIdentifier());
+    // int timerEvent = -1;
+    //
+    // if (communicationTimer != null) {
+    // timerEvent = communicationTimer.start("pidgin read message");
+    // }
+    //
+    // byte opcode = rm.readByte();
+    // boolean hasObject = rm.readBoolean();
+    //
+    // Object data = null;
+    //
+    // if (hasObject) {
+    // data = rm.readObject();
+    // }
+    //
+    // int bufferCount = rm.readInt();
+    //
+    // ByteBuffer[] buffers = null;
+    //
+    // if (bufferCount > 0) {
+    // int[] sizes = new int[bufferCount];
+    //
+    // for (int i = 0; i < bufferCount; i++) {
+    // sizes[i] = rm.readInt();
+    // }
+    //
+    // buffers = upcall.allocateByteBuffers(name, source, opcode, data, sizes);
+    //
+    // for (int i = 0; i < bufferCount; i++) {
+    // // TODO: We should check if the buffers[i] is actually valid and has the reading space?
+    // rm.readByteBuffer(buffers[i]);
+    // }
+    // }
+    //
+    // long sz = rm.finish();
+    //
+    // if (timerEvent != -1) {
+    // communicationTimer.stop(timerEvent);
+    // communicationTimer.addBytes(sz, timerEvent);
+    // }
+    //
+    // upcall.receiveMessage(name, source, opcode, data, buffers);
+    // }
 }
