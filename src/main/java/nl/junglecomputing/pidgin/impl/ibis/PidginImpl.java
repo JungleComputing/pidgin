@@ -116,10 +116,6 @@ public class PidginImpl implements Pidgin {
 
     public void terminate() throws IOException {
 
-        // for (Channel c : channels.values()) {
-        // c.deactivate();
-        // }
-
         if (local.equals(master)) {
             ibis.registry().terminate();
         } else {
