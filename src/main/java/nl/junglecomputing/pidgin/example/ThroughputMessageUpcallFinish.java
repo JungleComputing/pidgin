@@ -160,7 +160,7 @@ public class ThroughputMessageUpcallFinish implements MessageUpcall {
 
         Properties prop = new Properties();
 
-        Pidgin p = PidginFactory.create(prop);
+        Pidgin p = PidginFactory.create("TP", prop);
 
         if (p.getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
@@ -169,7 +169,7 @@ public class ThroughputMessageUpcallFinish implements MessageUpcall {
 
         new ThroughputMessageUpcallFinish(p).runTest();
 
-        PidginFactory.terminate();
+        PidginFactory.terminate("TP");
     }
 
 }

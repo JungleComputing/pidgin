@@ -17,31 +17,72 @@
 package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Properties;
 
 import nl.junglecomputing.pidgin.impl.ibis.PidginImpl;
 
 public class PidginFactory {
 
-    private static PidginImpl pidgin = null;
-    private static int use = 0;
+    private static class PidginData {
 
-    public static synchronized Pidgin create(Properties p) throws Exception {
+        final PidginImpl pidgin;
+        int count;
 
-        if (pidgin == null) {
-            pidgin = new PidginImpl(p);
+        PidginData(PidginImpl pidgin) {
+            this.pidgin = pidgin;
+            this.count = 0;
         }
 
-        use++;
-        return pidgin;
+        void inc() {
+            count = count + 1;
+        }
+
+        void dec() {
+            count = count - 1;
+        }
     }
 
-    public static synchronized void terminate() throws IOException {
+    private static HashMap<String, PidginData> flock = new HashMap<>();
 
-        use--;
+    public static synchronized Pidgin create(String name, Properties p) throws Exception {
 
-        if (use == 0) {
-            pidgin.terminate();
+        PidginData tmp = flock.get(name);
+
+        if (tmp == null) {
+            tmp = new PidginData(new PidginImpl(p));
+            flock.put(name, tmp);
+        }
+
+        tmp.inc();
+        return tmp.pidgin;
+    }
+
+    public static synchronized Pidgin get(String name) {
+
+        PidginData tmp = flock.get(name);
+
+        if (tmp == null) {
+            return null;
+        }
+
+        tmp.inc();
+        return tmp.pidgin;
+    }
+
+    public static synchronized void terminate(String name) throws IOException {
+
+        PidginData tmp = flock.get(name);
+
+        if (tmp == null) {
+            return;
+        }
+
+        tmp.dec();
+
+        if (tmp.count == 0) {
+            tmp.pidgin.terminate();
+            flock.remove(name);
         }
     }
 }

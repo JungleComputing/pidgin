@@ -106,7 +106,7 @@ public class ThroughputExplicit {
 
         Properties prop = new Properties();
 
-        Pidgin p = PidginFactory.create(prop);
+        Pidgin p = PidginFactory.create("TP", prop);
 
         if (p.getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
@@ -115,6 +115,6 @@ public class ThroughputExplicit {
 
         new ThroughputExplicit(p).runTest();
 
-        PidginFactory.terminate();
+        PidginFactory.terminate("TP");
     }
 }

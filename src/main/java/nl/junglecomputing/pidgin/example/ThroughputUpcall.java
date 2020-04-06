@@ -157,7 +157,7 @@ public class ThroughputUpcall implements Upcall {
 
         Properties prop = new Properties();
 
-        Pidgin p = PidginFactory.create(prop);
+        Pidgin p = PidginFactory.create("TP", prop);
 
         if (p.getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
@@ -166,6 +166,6 @@ public class ThroughputUpcall implements Upcall {
 
         new ThroughputUpcall(p).runTest();
 
-        PidginFactory.terminate();
+        PidginFactory.terminate("TP");
     }
 }
