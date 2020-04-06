@@ -26,63 +26,83 @@ public class PidginFactory {
 
     private static class PidginData {
 
-        final PidginImpl pidgin;
+        PidginImpl pidgin;
         int count;
 
-        PidginData(PidginImpl pidgin) {
-            this.pidgin = pidgin;
+        PidginData() {
             this.count = 0;
         }
 
-        void inc() {
-            count = count + 1;
+        synchronized void setPidgin(PidginImpl p) {
+            this.pidgin = p;
         }
 
-        void dec() {
-            count = count - 1;
+        synchronized PidginImpl getPidgin() {
+            return pidgin;
+        }
+
+        synchronized int inc() {
+            return count++;
+        }
+
+        synchronized int dec() {
+            return --count;
         }
     }
 
     private static HashMap<String, PidginData> flock = new HashMap<>();
 
-    public static synchronized Pidgin create(String name, Properties p) throws Exception {
+    public static Pidgin create(String name, Properties p) throws Exception {
 
-        PidginData tmp = flock.get(name);
+        PidginData tmp = null;
 
-        if (tmp == null) {
-            tmp = new PidginData(new PidginImpl(p));
-            flock.put(name, tmp);
+        synchronized (flock) {
+
+            tmp = flock.get(name);
+
+            if (tmp == null) {
+                tmp = new PidginData();
+                flock.put(name, tmp);
+            }
+
+            tmp.inc();
         }
 
-        tmp.inc();
-        return tmp.pidgin;
+        PidginImpl pidgin = tmp.getPidgin();
+
+        if (pidgin == null) {
+            pidgin = new PidginImpl(p);
+            tmp.setPidgin(pidgin);
+        }
+
+        return pidgin;
     }
 
-    public static synchronized Pidgin get(String name) {
+    public static void terminate(String name) throws IOException {
 
-        PidginData tmp = flock.get(name);
+        PidginImpl toKill = null;
 
-        if (tmp == null) {
-            return null;
+        synchronized (flock) {
+
+            PidginData tmp = flock.get(name);
+
+            if (tmp == null) {
+                return;
+            }
+
+            int count = tmp.dec();
+
+            System.out.println("Pidgin " + name + " terminate count " + count);
+
+            if (count <= 0) {
+                flock.remove(name);
+                toKill = tmp.pidgin;
+
+            }
         }
 
-        tmp.inc();
-        return tmp.pidgin;
-    }
-
-    public static synchronized void terminate(String name) throws IOException {
-
-        PidginData tmp = flock.get(name);
-
-        if (tmp == null) {
-            return;
-        }
-
-        tmp.dec();
-
-        if (tmp.count == 0) {
-            tmp.pidgin.terminate();
-            flock.remove(name);
+        if (toKill != null) {
+            toKill.terminate();
         }
     }
 }
