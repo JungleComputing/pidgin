@@ -17,6 +17,7 @@
 package nl.junglecomputing.pidgin.impl.ibis;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -46,7 +47,7 @@ public abstract class ChannelImpl implements Channel {
 
     protected ReceivePort rports[];
 
-    private final ConcurrentHashMap<IbisIdentifier, SendPort> sendports = new ConcurrentHashMap<IbisIdentifier, SendPort>();
+    private final HashMap<IbisIdentifier, SendPort> sendports = new HashMap<IbisIdentifier, SendPort>();
 
     protected final ConcurrentHashMap<IbisIdentifier, ReceivePort> receiveports = new ConcurrentHashMap<IbisIdentifier, ReceivePort>();
 
@@ -189,38 +190,57 @@ public abstract class ChannelImpl implements Channel {
             logger.error("Could not connect to " + id.name() + ":" + rpName, e);
             throw e;
         }
+
         return sp;
     }
 
     private SendPort getSendPort(IbisIdentifier id) throws IOException {
 
+        SendPort sp = null;
+
         if (id.equals(ibis.identifier())) {
             logger.error("Sending to myself! " + id + " " + ibis.identifier(), new Throwable());
         }
 
-        SendPort sp = sendports.get(id);
+        synchronized (sendports) {
 
-        if (sp == null) {
-            String rpName = getReceivePortName(ibis.identifier());
+            // First check if the sender is in the hash. If so, there may not be a connection yet.
+            if (sendports.containsKey(id)) {
 
-            sp = createAndConnect(id, rpName, CONNECT_TIMEOUT);
+                // The sender is known in the hash, so either we have a connection, or one is being set up.
+                sp = sendports.get(id);
 
-            if (logger.isInfoEnabled()) {
-                logger.info("Succesfully connected to " + id + ":" + rpName + " from " + ibis.identifier());
-            }
+                while (sp == null) {
+                    try {
+                        logger.warn("Waiting for sendport to " + id + " to be created");
+                        sendports.wait(1000L);
+                    } catch (Exception e) {
+                        // ignored
+                    }
 
-            SendPort sp2 = sendports.putIfAbsent(id, sp);
-
-            if (sp2 != null) {
-                // Someone managed to sneak in between our get and put!
-                try {
-                    sp.close();
-                } catch (Exception e) {
-                    // ignored
+                    sp = sendports.get(id);
                 }
 
-                sp = sp2;
+                // We have a connection already, so return it
+                return sp;
+            } else {
+                // The sender is not known yet, so we claim it.
+                sendports.put(id, null);
             }
+        }
+
+        String rpName = getReceivePortName(ibis.identifier());
+
+        sp = createAndConnect(id, rpName, CONNECT_TIMEOUT);
+
+        if (logger.isInfoEnabled()) {
+            logger.info("Succesfully connected to " + id + ":" + rpName + " from " + ibis.identifier());
+        }
+
+        // Store the new connection in the hashmap and wake up anyone interested.
+        synchronized (sendports) {
+            sendports.put(id, sp);
+            sendports.notifyAll();
         }
 
         return sp;
