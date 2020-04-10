@@ -35,7 +35,7 @@ import nl.junglecomputing.pidgin.Pidgin;
 
 public class ThroughputMessageUpcallPack implements BufferAllocator, MessageUpcall {
 
-    private static final String NAME = "tpU";
+    private static final String NAME = "tpMUPF";
 
     private static final int TESTS = 100;
     private static final int REPEAT = 1000;

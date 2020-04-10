@@ -29,6 +29,10 @@ public class AllToAllCommunicatorExplicit extends Communicator {
 
     private int pollOffset = 0;
 
+    public AllToAllCommunicatorExplicit(String name, Ibis ibis) throws CommunicatorException, IOException {
+        this(name, ibis, ibis.registry().joinedIbises());
+    }
+
     public AllToAllCommunicatorExplicit(String name, Ibis ibis, IbisIdentifier[] participants) throws CommunicatorException, IOException {
         super(name, ibis, participants);
 

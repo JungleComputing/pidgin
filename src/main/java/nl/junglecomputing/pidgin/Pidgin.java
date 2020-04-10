@@ -48,7 +48,7 @@ public class Pidgin {
 
     public static final PortType portTypeOneToOneExplicit = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
             PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_TIMEOUT, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE,
-            PortType.CONNECTION_UPCALLS);
+            PortType.RECEIVE_POLL, PortType.CONNECTION_UPCALLS);
 
     public static final PortType portTypeManyToOneExplicit = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
             PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_TIMEOUT, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_MANY_TO_ONE);

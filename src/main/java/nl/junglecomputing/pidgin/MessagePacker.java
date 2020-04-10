@@ -60,11 +60,11 @@ public class MessagePacker {
         }
     }
 
-    public static Message unpack(ReadMessage rm, BufferAllocator upcall) throws IOException, ClassNotFoundException {
-        return unpack(rm, upcall, null);
+    public static Message unpack(ReadMessage rm, BufferAllocator allocator) throws IOException, ClassNotFoundException {
+        return unpack(rm, allocator, null);
     }
 
-    public static Message unpack(ReadMessage rm, BufferAllocator upcall, Message m) throws IOException, ClassNotFoundException {
+    public static Message unpack(ReadMessage rm, BufferAllocator allocator, Message m) throws IOException, ClassNotFoundException {
 
         byte opcode = rm.readByte();
         boolean hasObject = rm.readBoolean();
@@ -86,7 +86,7 @@ public class MessagePacker {
                 sizes[i] = rm.readInt();
             }
 
-            buffers = upcall.allocateByteBuffers(rm.origin().ibisIdentifier(), opcode, data, sizes);
+            buffers = allocator.allocateByteBuffers(rm.origin().ibisIdentifier(), opcode, data, sizes);
 
             for (int i = 0; i < bufferCount; i++) {
                 // TODO: We should check if the buffers[i] is actually valid and has the reading space?
