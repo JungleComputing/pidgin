@@ -20,20 +20,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Properties;
 
-import ibis.ipl.IbisIdentifier;
+import ibis.ipl.Ibis;
 import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
 import ibis.ipl.WriteMessage;
-import nl.junglecomputing.pidgin.ChannelNotActiveException;
-import nl.junglecomputing.pidgin.DuplicateChannelException;
-import nl.junglecomputing.pidgin.MessageUpcallChannel;
-import nl.junglecomputing.pidgin.NoSuchChannelException;
+import nl.junglecomputing.pidgin.CommunicatorException;
+import nl.junglecomputing.pidgin.OneToOneCommunicatorMessageUpcall;
 import nl.junglecomputing.pidgin.Pidgin;
-import nl.junglecomputing.pidgin.PidginFactory;
 
 public class ThroughputMessageUpcall implements MessageUpcall {
 
-    private static final String CHANNEL = "tpMU";
+    private static final String NAME = "tpMU";
 
     private static final int TESTS = 100;
     private static final int REPEAT = 1000;
@@ -47,31 +44,41 @@ public class ThroughputMessageUpcall implements MessageUpcall {
     private boolean ack = false;
     private int count = 0;
 
-    private final int rank;
-    private final IbisIdentifier[] ids;
+    private final boolean finish;
 
-    private final MessageUpcallChannel channel;
+    private final OneToOneCommunicatorMessageUpcall comm;
 
-    public ThroughputMessageUpcall(Pidgin pidgin) throws DuplicateChannelException, IOException {
+    public ThroughputMessageUpcall(Ibis ibis, boolean finish) throws IOException, CommunicatorException {
+        this.finish = finish;
+
         this.buffer = ByteBuffer.allocate(SIZE);
         this.buffers = new ByteBuffer[1];
         this.buffers[0] = buffer;
 
-        rank = pidgin.getRank();
-        ids = pidgin.getAllIdentifiers();
-
-        channel = pidgin.createMessageUpcallChannel(CHANNEL, this);
+        comm = new OneToOneCommunicatorMessageUpcall(NAME, ibis, this);
     }
 
     @Override
     public void upcall(ReadMessage readMessage) throws IOException, ClassNotFoundException {
-        if (rank == 0) {
+
+        if (comm.rank() == 0) {
             buffer.position(0);
             buffer.limit(buffer.capacity());
             readMessage.readByteBuffer(buffer);
+
+            if (finish) {
+                readMessage.finish();
+            }
+
             incCount();
+
         } else {
             readMessage.readByte();
+
+            if (finish) {
+                readMessage.finish();
+            }
+
             gotAck();
         }
     }
@@ -113,15 +120,15 @@ public class ThroughputMessageUpcall implements MessageUpcall {
         }
     }
 
-    public void runTest() throws DuplicateChannelException, IOException, NoSuchChannelException, ChannelNotActiveException {
+    public void runTest() throws IOException {
 
-        channel.activate();
+        comm.activate();
 
-        if (rank == 0) {
+        if (comm.rank() == 0) {
 
             for (int t = 0; t < TESTS; t++) {
                 waitForCount();
-                WriteMessage wm = channel.sendMessage(ids[1]);
+                WriteMessage wm = comm.send();
                 wm.writeByte(OPCODE_ACK);
                 wm.finish();
             }
@@ -135,7 +142,7 @@ public class ThroughputMessageUpcall implements MessageUpcall {
                     buffer.position(0);
                     buffer.limit(buffer.capacity());
 
-                    WriteMessage wm = channel.sendMessage(ids[0]);
+                    WriteMessage wm = comm.send();
                     wm.writeByteBuffer(buffer);
                     wm.finish();
                 }
@@ -151,23 +158,26 @@ public class ThroughputMessageUpcall implements MessageUpcall {
             }
         }
 
-        channel.deactivate();
+        comm.deactivate();
     }
 
     public static void main(String[] args) throws Exception {
 
-        Properties prop = new Properties();
+        Properties p = new Properties();
 
-        Pidgin p = PidginFactory.create("TP", prop);
+        Ibis ibis = Pidgin.createClosedWorldIbis(p);
 
-        if (p.getPoolSize() != 2) {
+        ibis.registry().waitUntilPoolClosed();
+
+        if (ibis.registry().getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
             System.exit(1);
         }
 
-        new ThroughputMessageUpcall(p).runTest();
+        new ThroughputMessageUpcall(ibis, false).runTest();
 
-        PidginFactory.terminate("TP");
+        ibis.registry().terminate();
+        ibis.registry().waitUntilTerminated();
     }
 
 }

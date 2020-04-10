@@ -14,43 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nl.junglecomputing.pidgin.impl.ibis;
+package nl.junglecomputing.pidgin;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import ibis.ipl.Ibis;
-import ibis.ipl.IbisIdentifier;
-import ibis.ipl.MessageUpcall;
 import ibis.ipl.ReadMessage;
 import ibis.ipl.WriteMessage;
-import nl.junglecomputing.pidgin.Upcall;
-import nl.junglecomputing.pidgin.UpcallChannel;
 
-public class UpcallChannelImpl implements UpcallChannel, MessageUpcall {
+public class MessagePacker {
 
-    private final MessageUpcallChannelImpl impl;
-    private final Upcall upcall;
-
-    public UpcallChannelImpl(Ibis ibis, String name, Upcall upcall, IbisIdentifier[] ids) throws IOException {
-        this.upcall = upcall;
-        impl = new MessageUpcallChannelImpl(ibis, name, this, ids);
+    public static void pack(WriteMessage wm, Message m) throws IOException {
+        pack(wm, m.getOpcode(), m.getData(), m.getBuffers());
     }
 
-    @Override
-    public void activate() throws IOException {
-        impl.activate();
-    }
-
-    @Override
-    public void deactivate() throws IOException {
-        impl.deactivate();
-    }
-
-    @Override
-    public void sendMessage(IbisIdentifier dest, byte opcode, Object data, ByteBuffer... buffers) throws IOException {
-
-        WriteMessage wm = impl.sendMessage(dest);
+    public static void pack(WriteMessage wm, byte opcode, Object data, ByteBuffer... buffers) throws IOException {
 
         wm.writeByte(opcode);
 
@@ -80,14 +58,13 @@ public class UpcallChannelImpl implements UpcallChannel, MessageUpcall {
                 }
             }
         }
-
-        wm.finish();
     }
 
-    @Override
-    public void upcall(ReadMessage rm) throws IOException, ClassNotFoundException {
+    public static Message unpack(ReadMessage rm, BufferAllocator upcall) throws IOException, ClassNotFoundException {
+        return unpack(rm, upcall, null);
+    }
 
-        IbisIdentifier source = rm.origin().ibisIdentifier();
+    public static Message unpack(ReadMessage rm, BufferAllocator upcall, Message m) throws IOException, ClassNotFoundException {
 
         byte opcode = rm.readByte();
         boolean hasObject = rm.readBoolean();
@@ -109,7 +86,7 @@ public class UpcallChannelImpl implements UpcallChannel, MessageUpcall {
                 sizes[i] = rm.readInt();
             }
 
-            buffers = upcall.allocateByteBuffers(impl.getName(), source, opcode, data, sizes);
+            buffers = upcall.allocateByteBuffers(rm.origin().ibisIdentifier(), opcode, data, sizes);
 
             for (int i = 0; i < bufferCount; i++) {
                 // TODO: We should check if the buffers[i] is actually valid and has the reading space?
@@ -117,8 +94,14 @@ public class UpcallChannelImpl implements UpcallChannel, MessageUpcall {
             }
         }
 
-        rm.finish();
+        if (m == null) {
+            m = new Message(opcode, data, buffers);
+        } else {
+            m.setOpcode(opcode);
+            m.setData(data);
+            m.setBuffers(buffers);
+        }
 
-        upcall.receiveMessage(impl.getName(), source, opcode, data, buffers);
+        return m;
     }
 }

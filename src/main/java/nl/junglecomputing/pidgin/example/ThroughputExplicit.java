@@ -20,17 +20,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Properties;
 
-import ibis.ipl.IbisIdentifier;
+import ibis.ipl.Ibis;
 import ibis.ipl.ReadMessage;
 import ibis.ipl.WriteMessage;
-import nl.junglecomputing.pidgin.DuplicateChannelException;
-import nl.junglecomputing.pidgin.ExplicitChannel;
+import nl.junglecomputing.pidgin.OneToOneCommunicatorExplicit;
 import nl.junglecomputing.pidgin.Pidgin;
-import nl.junglecomputing.pidgin.PidginFactory;
 
 public class ThroughputExplicit {
 
-    private static final String CHANNEL = "tpEx";
+    private static final String NAME = "tpEx";
 
     private static final int TESTS = 100;
     private static final int REPEAT = 1000;
@@ -38,23 +36,21 @@ public class ThroughputExplicit {
 
     private static final byte OPCODE_ACK = 1;
 
-    private final Pidgin pidgin;
+    private final Ibis ibis;
+    private final OneToOneCommunicatorExplicit com;
 
-    private final ExplicitChannel channel;
-
-    public ThroughputExplicit(Pidgin pidgin) throws DuplicateChannelException, IOException {
-        this.pidgin = pidgin;
-        channel = pidgin.createExplicitChannel(CHANNEL);
+    public ThroughputExplicit(Ibis ibis) throws Exception {
+        this.ibis = ibis;
+        com = new OneToOneCommunicatorExplicit(NAME, ibis);
     }
 
     public void runTest() throws IOException {
 
-        channel.activate();
+        com.activate();
 
         ByteBuffer buffer = ByteBuffer.allocate(SIZE);
 
-        int rank = pidgin.getRank();
-        IbisIdentifier[] ids = pidgin.getAllIdentifiers();
+        int rank = com.rank();
 
         if (rank == 0) {
 
@@ -63,12 +59,12 @@ public class ThroughputExplicit {
                     buffer.position(0);
                     buffer.limit(buffer.capacity());
 
-                    ReadMessage rm = channel.receiveMessage(ids[1]);
+                    ReadMessage rm = com.receive();
                     rm.readByteBuffer(buffer);
                     rm.finish();
                 }
 
-                WriteMessage wm = channel.sendMessage(ids[1]);
+                WriteMessage wm = com.send();
                 wm.writeByte(OPCODE_ACK);
                 wm.finish();
             }
@@ -81,12 +77,12 @@ public class ThroughputExplicit {
                     buffer.position(0);
                     buffer.limit(buffer.capacity());
 
-                    WriteMessage wm = channel.sendMessage(ids[0]);
+                    WriteMessage wm = com.send();
                     wm.writeByteBuffer(buffer);
                     wm.finish();
                 }
 
-                ReadMessage rm = channel.receiveMessage(ids[0]);
+                ReadMessage rm = com.receive();
                 rm.readByte();
                 rm.finish();
 
@@ -99,22 +95,25 @@ public class ThroughputExplicit {
             }
         }
 
-        channel.deactivate();
+        com.deactivate();
     }
 
     public static void main(String[] args) throws Exception {
 
-        Properties prop = new Properties();
+        Properties p = new Properties();
 
-        Pidgin p = PidginFactory.create("TP", prop);
+        Ibis ibis = Pidgin.createClosedWorldIbis(p);
 
-        if (p.getPoolSize() != 2) {
+        ibis.registry().waitUntilPoolClosed();
+
+        if (ibis.registry().getPoolSize() != 2) {
             System.err.println("Need 2 nodes for this test!");
             System.exit(1);
         }
 
-        new ThroughputExplicit(p).runTest();
+        new ThroughputExplicit(ibis).runTest();
 
-        PidginFactory.terminate("TP");
+        ibis.registry().terminate();
+        ibis.registry().waitUntilTerminated();
     }
 }

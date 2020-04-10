@@ -21,7 +21,7 @@ import java.util.Properties;
 import ibis.ipl.Ibis;
 import nl.junglecomputing.pidgin.Pidgin;
 
-public class ThroughputMessageUpcallFinish {
+public class ThroughputMessageUpcallPackFinish {
 
     public static void main(String[] args) throws Exception {
 
@@ -36,7 +36,7 @@ public class ThroughputMessageUpcallFinish {
             System.exit(1);
         }
 
-        new ThroughputMessageUpcall(ibis, true).runTest();
+        new ThroughputMessageUpcallPack(ibis, true).runTest();
 
         ibis.registry().terminate();
         ibis.registry().waitUntilTerminated();

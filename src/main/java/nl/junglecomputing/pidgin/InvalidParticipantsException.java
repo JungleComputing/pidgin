@@ -16,13 +16,15 @@
  */
 package nl.junglecomputing.pidgin;
 
-import java.nio.ByteBuffer;
+public class InvalidParticipantsException extends CommunicatorException {
 
-import ibis.ipl.IbisIdentifier;
+    private static final long serialVersionUID = 8613534733944920867L;
 
-public interface Upcall {
+    public InvalidParticipantsException(String message) {
+        super(message);
+    }
 
-    ByteBuffer[] allocateByteBuffers(String channel, IbisIdentifier sender, byte opcode, Object data, int[] sizes);
-
-    void receiveMessage(String channel, IbisIdentifier sender, byte opcode, Object data, ByteBuffer[] buffers);
+    public InvalidParticipantsException(String message, Throwable e) {
+        super(message, e);
+    }
 }

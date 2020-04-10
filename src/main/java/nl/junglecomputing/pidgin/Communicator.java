@@ -23,20 +23,10 @@ import org.slf4j.LoggerFactory;
 
 import ibis.ipl.Ibis;
 import ibis.ipl.IbisIdentifier;
-import ibis.ipl.PortType;
 
 public abstract class Communicator {
 
     private static final Logger logger = LoggerFactory.getLogger(Communicator.class);
-
-    protected static final PortType portTypeManyToOneUpcall = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
-            PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_AUTO_UPCALLS, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_MANY_TO_ONE);
-
-    protected static final PortType portTypeOneToOneUpcall = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
-            PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_AUTO_UPCALLS, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE);
-
-    protected static final PortType portTypeOneToOneExplicit = new PortType(PortType.COMMUNICATION_FIFO, PortType.COMMUNICATION_RELIABLE,
-            PortType.SERIALIZATION_OBJECT, PortType.RECEIVE_EXPLICIT, PortType.RECEIVE_TIMEOUT, PortType.RECEIVE_TIMEOUT, PortType.CONNECTION_ONE_TO_ONE);
 
     public static final long ELECT_TIMEOUT = 1000L;
 
@@ -44,6 +34,7 @@ public abstract class Communicator {
     protected final Ibis ibis;
     protected final IbisIdentifier me;
     protected final int rank;
+    protected final int size;
     protected final String name;
 
     protected Communicator(String name, Ibis ibis, IbisIdentifier[] participants) throws CommunicatorException {
@@ -91,6 +82,7 @@ public abstract class Communicator {
         }
 
         rank = tmp;
+        size = participants.length;
 
         if (rank == 0) {
             IbisIdentifier master = null;
@@ -150,9 +142,5 @@ public abstract class Communicator {
     public abstract void activate() throws IOException;
 
     public abstract void deactivate() throws IOException;
-
-    protected abstract String getReceivePortName(IbisIdentifier sender);
-
-    protected abstract PortType getPortType();
 
 }
